@@ -17,6 +17,7 @@ import {
 } from "@/components/ui/accordion";
 import AddEditLessonModal from '@/components/AddEditLessonModal'; // Updated import
 import { toast } from "sonner";
+import { Trash2 } from 'lucide-react'; // Import Trash2 icon
 
 interface Lesson {
   id: string;
