@@ -13,6 +13,7 @@ import ResourcesPage from "./pages/ResourcesPage";
 import LandingPage from "./pages/LandingPage";
 import AIConfigPage from "./pages/AIConfigPage";
 import PromptLibraryPage from "./pages/PromptLibraryPage";
+import UserActivityPage from "./pages/UserActivityPage"; // New import
 
 const queryClient = new QueryClient();
 
@@ -30,6 +31,7 @@ const App = () => (
             <Route path="landing-page" element={<LandingPage />} />
             <Route path="ai-config" element={<AIConfigPage />} />
             <Route path="prompts" element={<PromptLibraryPage />} />
+            <Route path="user-activity" element={<UserActivityPage />} /> {/* New route */}
             {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
             <Route path="*" element={<NotFound />} />
           </Route>

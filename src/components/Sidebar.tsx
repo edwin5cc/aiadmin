@@ -1,6 +1,6 @@
 import React from 'react';
 import { NavLink } from 'react-router-dom';
-import { Home, Book, Folder, Layout, Settings, FileText } from 'lucide-react';
+import { Home, Book, Folder, Layout, Settings, FileText, Activity } from 'lucide-react'; // Added Activity icon
 
 const Sidebar = () => {
   return (
@@ -45,6 +45,13 @@ const Sidebar = () => {
           <NavLink to="/prompts" className="nav-link">
             <FileText />
             <span>Prompt Library</span>
+          </NavLink>
+        </li>
+        <li className="mt-4 pt-4 border-t border-slate-200 text-xs font-semibold text-slate-400 uppercase px-3">Monitoring</li>
+        <li>
+          <NavLink to="/user-activity" className="nav-link">
+            <Activity />
+            <span>User Activity</span>
           </NavLink>
         </li>
       </ul>
