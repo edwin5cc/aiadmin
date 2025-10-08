@@ -97,5 +97,33 @@
 
   body {
     @apply bg-background text-foreground;
+    font-family: 'Inter', sans-serif; /* Added from your HTML */
+  }
+
+  /* Simple scrollbar styling */
+  ::-webkit-scrollbar {
+      width: 8px;
+  }
+  ::-webkit-scrollbar-track {
+      background: #f1f5f9;
+  }
+  ::-webkit-scrollbar-thumb {
+      background: #cbd5e1;
+      border-radius: 10px;
+  }
+  ::-webkit-scrollbar-thumb:hover {
+      background: #94a3b8;
+  }
+}
+
+@layer components {
+  .nav-link {
+      @apply flex items-center p-3 rounded-lg text-slate-700 font-medium transition-colors hover:bg-slate-100;
+  }
+  .nav-link.active {
+      @apply bg-indigo-50 text-indigo-600 font-semibold;
+  }
+  .nav-link svg {
+      @apply w-5 h-5 mr-3;
   }
 }
