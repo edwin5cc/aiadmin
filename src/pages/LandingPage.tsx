@@ -4,13 +4,6 @@ import React, { useState } from 'react';
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
 import { Upload } from 'lucide-react';
 import { toast } from "sonner";
 
@@ -28,20 +21,6 @@ const LandingPage = () => {
   return (
     <div className="p-4">
       <h2 className="text-3xl font-bold mb-6">Landing Page Management</h2>
-
-      {/* Portal Selector */}
-      <div className="mb-6">
-        <label htmlFor="portal-select-landing" className="block text-sm font-medium text-slate-700 mb-1">Select Portal</label>
-        <Select defaultValue="business-owner">
-          <SelectTrigger id="portal-select-landing" className="w-full md:w-1/3">
-            <SelectValue placeholder="Select a portal" />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="business-owner">Business Owner Portal</SelectItem>
-            <SelectItem value="founder">Founder Portal</SelectItem>
-          </SelectContent>
-        </Select>
-      </div>
 
       {/* Hero Section - Simplified */}
       <div className="bg-white p-6 rounded-lg shadow mb-8 space-y-6">
