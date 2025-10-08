@@ -9,13 +9,12 @@ const Sidebar = () => {
         <h1 className="text-xl font-bold text-indigo-600">LMS Admin</h1>
       </div>
       <ul className="flex-grow p-2">
-        {/* Removed Dashboard link */}
-        {/* <li>
+        <li>
           <NavLink to="/" className="nav-link">
             <Home />
             <span>Dashboard</span>
           </NavLink>
-        </li> */}
+        </li>
         <li className="mt-4 pt-4 border-t border-slate-200 text-xs font-semibold text-slate-400 uppercase px-3">Content</li>
         <li>
           <NavLink to="/courses" className="nav-link">

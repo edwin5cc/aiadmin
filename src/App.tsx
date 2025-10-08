@@ -4,7 +4,7 @@ import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route } from "react-router-dom";
 import Layout from "./components/Layout";
-// import DashboardPage from "./pages/DashboardPage"; // Removed
+import DashboardPage from "./pages/DashboardPage";
 import NotFound from "./pages/NotFound";
 
 // Placeholder pages for now, will be filled in later
@@ -24,8 +24,7 @@ const App = () => (
       <BrowserRouter>
         <Routes>
           <Route path="/" element={<Layout />}>
-            <Route index element={<CoursesPage />} /> {/* CoursesPage is now the default */}
-            {/* <Route index element={<DashboardPage />} /> */} {/* Removed Dashboard route */}
+            <Route index element={<DashboardPage />} />
             <Route path="courses" element={<CoursesPage />} />
             <Route path="resources" element={<ResourcesPage />} />
             <Route path="landing-page" element={<LandingPage />} />
