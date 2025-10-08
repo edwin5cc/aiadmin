@@ -10,13 +10,20 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import {
+  Accordion,
+  AccordionContent,
+  AccordionItem,
+  AccordionTrigger,
+} from "@/components/ui/accordion";
+import AIModulePromptConfig from '@/components/AIModulePromptConfig';
 
 const AIConfigPage = () => {
   return (
     <div className="p-4">
       <h2 className="text-3xl font-bold mb-6">AI Configuration</h2>
 
-      <div className="bg-white p-6 rounded-lg shadow space-y-6">
+      <div className="bg-white p-6 rounded-lg shadow space-y-6 mb-8">
         <h3 className="text-lg font-semibold mb-4">General AI Settings</h3>
 
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
@@ -54,8 +61,61 @@ const AIConfigPage = () => {
         </div>
 
         <div className="flex justify-end">
-          <Button className="bg-indigo-600 text-white font-semibold hover:bg-indigo-700">Save AI Settings</Button>
+          <Button className="bg-indigo-600 text-white font-semibold hover:bg-indigo-700">Save General AI Settings</Button>
         </div>
+      </div>
+
+      <div className="bg-white p-6 rounded-lg shadow">
+        <h3 className="text-lg font-semibold mb-4">AI Module Specific Prompts</h3>
+        <Accordion type="single" collapsible className="w-full">
+          <AccordionItem value="module-1" className="border p-4 rounded-lg mb-2">
+            <AccordionTrigger className="flex items-center justify-between w-full text-left font-bold text-lg hover:no-underline">
+              Profit Radar
+            </AccordionTrigger>
+            <AccordionContent className="mt-4">
+              <AIModulePromptConfig
+                moduleName="Profit Radar"
+                initialPrompt="Analyze market trends and provide actionable insights for maximizing profit margins, focusing on e-commerce businesses."
+              />
+            </AccordionContent>
+          </AccordionItem>
+
+          <AccordionItem value="module-2" className="border p-4 rounded-lg mb-2">
+            <AccordionTrigger className="flex items-center justify-between w-full text-left font-bold text-lg hover:no-underline">
+              Content Generator
+            </AccordionTrigger>
+            <AccordionContent className="mt-4">
+              <AIModulePromptConfig
+                moduleName="Content Generator"
+                initialPrompt="Generate engaging and SEO-friendly content for blog posts, social media, and email newsletters, tailored to a target audience of small business owners."
+              />
+            </AccordionContent>
+          </AccordionItem>
+
+          <AccordionItem value="module-3" className="border p-4 rounded-lg mb-2">
+            <AccordionTrigger className="flex items-center justify-between w-full text-left font-bold text-lg hover:no-underline">
+              Customer Support Bot
+            </AccordionTrigger>
+            <AccordionContent className="mt-4">
+              <AIModulePromptConfig
+                moduleName="Customer Support Bot"
+                initialPrompt="Provide polite, accurate, and helpful responses to common customer inquiries, escalating complex issues to human support when necessary."
+              />
+            </AccordionContent>
+          </AccordionItem>
+
+          <AccordionItem value="module-4" className="border p-4 rounded-lg">
+            <AccordionTrigger className="flex items-center justify-between w-full text-left font-bold text-lg hover:no-underline">
+              Lesson Plan Creator
+            </AccordionTrigger>
+            <AccordionContent className="mt-4">
+              <AIModulePromptConfig
+                moduleName="Lesson Plan Creator"
+                initialPrompt="Develop structured and comprehensive lesson plans for online courses, including learning objectives, activities, and assessment methods, for adult learners."
+              />
+            </AccordionContent>
+          </AccordionItem>
+        </Accordion>
       </div>
     </div>
   );
