@@ -19,8 +19,8 @@ import { Upload } from 'lucide-react';
 interface AddEditResourceModalProps {
   isOpen: boolean;
   onClose: () => void;
-  onSave: (resource: { name: string; type: string; value: string; fileName?: string }) => void;
-  initialResource?: { name: string; type: string; value: string; fileName?: string };
+  onSave: (resource: { name: string; type: string; value: string; description?: string; fileName?: string }) => void;
+  initialResource?: { name: string; type: string; value: string; description?: string; fileName?: string };
 }
 
 const AddEditResourceModal: React.FC<AddEditResourceModalProps> = ({
@@ -32,6 +32,7 @@ const AddEditResourceModal: React.FC<AddEditResourceModalProps> = ({
   const [resourceName, setResourceName] = useState(initialResource?.name || "");
   const [resourceType, setResourceType] = useState(initialResource?.type || "link");
   const [resourceValue, setResourceValue] = useState(initialResource?.value || "");
+  const [resourceDescription, setResourceDescription] = useState(initialResource?.description || ""); // New state for description
   const [fileName, setFileName] = useState(initialResource?.fileName || "");
 
   useEffect(() => {
@@ -39,18 +40,20 @@ const AddEditResourceModal: React.FC<AddEditResourceModalProps> = ({
       setResourceName(initialResource.name);
       setResourceType(initialResource.type);
       setResourceValue(initialResource.value);
+      setResourceDescription(initialResource.description || ""); // Set description
       setFileName(initialResource.fileName || "");
     } else {
       setResourceName("");
       setResourceType("link");
       setResourceValue("");
+      setResourceDescription(""); // Clear description
       setFileName("");
     }
   }, [initialResource, isOpen]);
 
   const handleSubmit = () => {
     if (resourceName.trim() && resourceValue.trim()) {
-      onSave({ name: resourceName, type: resourceType, value: resourceValue, fileName });
+      onSave({ name: resourceName, type: resourceType, value: resourceValue, description: resourceDescription.trim() || undefined, fileName });
       onClose();
     }
   };
@@ -149,6 +152,21 @@ const AddEditResourceModal: React.FC<AddEditResourceModalProps> = ({
               />
             </div>
           )}
+
+          {/* New Description Field */}
+          <div className="grid grid-cols-4 items-start gap-4">
+            <Label htmlFor="resource-description" className="text-right pt-2">
+              Description (Optional)
+            </Label>
+            <Textarea
+              id="resource-description"
+              rows={3}
+              value={resourceDescription}
+              onChange={(e) => setResourceDescription(e.target.value)}
+              className="col-span-3"
+              placeholder="Add a brief description for this resource..."
+            />
+          </div>
         </div>
         <DialogFooter>
           <Button variant="outline" onClick={onClose}>Cancel</Button>

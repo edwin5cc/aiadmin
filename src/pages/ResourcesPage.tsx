@@ -18,6 +18,7 @@ interface Resource {
   name: string;
   type: 'link' | 'file' | 'text';
   value: string;
+  description?: string; // New optional description field
   fileName?: string;
 }
 
@@ -33,15 +34,15 @@ const ResourcesPage = () => {
       id: 'cat-1',
       name: 'Marketing Templates',
       resources: [
-        { id: 'res-1', name: 'Social Media Content Calendar', type: 'link', value: 'https://docs.google.com/spreadsheets/d/...' },
-        { id: 'res-2', name: 'Email Campaign Checklist.pdf', type: 'file', value: 'file-upload-email-checklist.pdf', fileName: 'Email Campaign Checklist.pdf' },
+        { id: 'res-1', name: 'Social Media Content Calendar', type: 'link', value: 'https://docs.google.com/spreadsheets/d/...', description: 'A comprehensive calendar for planning social media posts.' },
+        { id: 'res-2', name: 'Email Campaign Checklist.pdf', type: 'file', value: 'file-upload-email-checklist.pdf', fileName: 'Email Campaign Checklist.pdf', description: 'Checklist to ensure all steps are covered for email campaigns.' },
       ],
     },
     {
       id: 'cat-2',
       name: 'Business Strategy Guides',
       resources: [
-        { id: 'res-3', name: 'SWOT Analysis Template', type: 'text', value: 'A SWOT analysis helps identify Strengths, Weaknesses, Opportunities, and Threats...' },
+        { id: 'res-3', name: 'SWOT Analysis Template', type: 'text', value: 'A SWOT analysis helps identify Strengths, Weaknesses, Opportunities, and Threats...', description: 'A guide and template for conducting a SWOT analysis.' },
       ],
     },
   ]);

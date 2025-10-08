@@ -12,6 +12,7 @@ interface Resource {
   name: string;
   type: 'link' | 'file' | 'text';
   value: string; // URL, file ID/name, or text content
+  description?: string; // New optional description field
   fileName?: string; // Only for type 'file'
 }
 
@@ -99,6 +100,7 @@ const ResourceCategoryCard: React.FC<ResourceCategoryCardProps> = ({
                 {getResourceIcon(resource.type)}
                 <div>
                   <p className="font-medium">{resource.name}</p>
+                  {resource.description && <p className="text-xs text-slate-500">{resource.description}</p>} {/* Display description */}
                   <p className="text-xs text-slate-400">
                     {resource.type === 'link' && `URL: ${resource.value.substring(0, 30)}...`}
                     {resource.type === 'file' && `File: ${resource.fileName || resource.value}`}
