@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -17,8 +17,17 @@ import {
   AccordionTrigger,
 } from "@/components/ui/accordion";
 import AIModulePromptConfig from '@/components/AIModulePromptConfig';
+import { toast } from "sonner"; // Import toast for notifications
 
 const AIConfigPage = () => {
+  const [apiKey, setApiKey] = useState(''); // State for API key input
+
+  const handleSaveApiKey = () => {
+    // In a real application, you would securely store this API key (e.g., send to backend)
+    console.log("Saving API Key:", apiKey);
+    toast.success("API Key saved successfully!");
+  };
+
   return (
     <div className="p-4">
       <h2 className="text-3xl font-bold mb-6">AI Configuration</h2>
@@ -49,18 +58,25 @@ const AIConfigPage = () => {
           </div>
         </div>
 
+        {/* New API Key Input Section */}
         <div className="space-y-2">
-          <Label htmlFor="system-prompt">Global System Prompt</Label>
-          <Textarea
-            id="system-prompt"
-            rows={5}
-            defaultValue="You are a helpful assistant for an online learning platform. Provide concise and accurate information, and always maintain a professional and encouraging tone."
-            placeholder="Enter a global system prompt for the AI"
+          <Label htmlFor="api-key">AI Service API Key</Label>
+          <Input
+            id="api-key"
+            type="password" // Use type="password" for sensitive input
+            value={apiKey}
+            onChange={(e) => setApiKey(e.target.value)}
+            placeholder="Enter your AI service API key"
           />
-          <p className="text-sm text-slate-500">This prompt will be prepended to all AI requests unless overridden by a specific tool.</p>
+          <p className="text-sm text-slate-500">
+            This key will be used to authenticate with your chosen AI service.
+          </p>
         </div>
 
-        <div className="flex justify-end">
+        <div className="flex justify-end space-x-2">
+          <Button onClick={handleSaveApiKey} className="bg-indigo-600 text-white font-semibold hover:bg-indigo-700">
+            Save API Key
+          </Button>
           <Button className="bg-indigo-600 text-white font-semibold hover:bg-indigo-700">Save General AI Settings</Button>
         </div>
       </div>
