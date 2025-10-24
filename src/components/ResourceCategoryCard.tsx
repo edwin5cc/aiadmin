@@ -3,7 +3,7 @@
 import React, { useState } from 'react';
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Edit, Trash2, Link, FileText, Text } from 'lucide-react';
+import { Edit, Trash2, Link, FileText, Text, Loader2 } from 'lucide-react';
 import AddEditResourceModal from './AddEditResourceModal';
 import { toast } from "sonner";
 
@@ -27,6 +27,14 @@ interface ResourceCategoryCardProps {
   onAddResource: (categoryId: string, resource: Omit<Resource, 'id'>) => void;
   onEditResource: (categoryId: string, resourceId: string, updatedResource: Omit<Resource, 'id'>) => void;
   onDeleteResource: (categoryId: string, resourceId: string) => void;
+  isLoading?: {
+    isCreatingCategory: boolean;
+    isUpdatingCategory: boolean;
+    isDeletingCategory: boolean;
+    isCreatingResource: boolean;
+    isUpdatingResource: boolean;
+    isDeletingResource: boolean;
+  };
 }
 
 const ResourceCategoryCard: React.FC<ResourceCategoryCardProps> = ({
@@ -36,6 +44,14 @@ const ResourceCategoryCard: React.FC<ResourceCategoryCardProps> = ({
   onAddResource,
   onEditResource,
   onDeleteResource,
+  isLoading = {
+    isCreatingCategory: false,
+    isUpdatingCategory: false,
+    isDeletingCategory: false,
+    isCreatingResource: false,
+    isUpdatingResource: false,
+    isDeletingResource: false,
+  },
 }) => {
   const [isResourceModalOpen, setIsResourceModalOpen] = useState(false);
   const [editingResource, setEditingResource] = useState<Resource | undefined>(undefined);
@@ -53,10 +69,8 @@ const ResourceCategoryCard: React.FC<ResourceCategoryCardProps> = ({
   const handleSaveResource = (resourceData: Omit<Resource, 'id'>) => {
     if (editingResource) {
       onEditResource(category.id, editingResource.id, resourceData);
-      toast.success("Resource updated successfully!");
     } else {
       onAddResource(category.id, resourceData);
-      toast.success("Resource added successfully!");
     }
     setIsResourceModalOpen(false);
   };
@@ -79,14 +93,47 @@ const ResourceCategoryCard: React.FC<ResourceCategoryCardProps> = ({
       <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
         <CardTitle className="text-lg font-bold">{category.name}</CardTitle>
         <div className="flex space-x-2">
-          <Button variant="ghost" size="icon" onClick={() => onEditCategory(category.id, category.name)}>
-            <Edit className="h-4 w-4 text-slate-600" />
+          <Button 
+            variant="ghost" 
+            size="icon" 
+            onClick={() => onEditCategory(category.id, category.name)}
+            disabled={isLoading.isUpdatingCategory || isLoading.isDeletingCategory || isLoading.isCreatingResource || isLoading.isUpdatingResource || isLoading.isDeletingResource}
+          >
+            {isLoading.isUpdatingCategory ? (
+              <Loader2 className="h-4 w-4 text-slate-600 animate-spin" />
+            ) : (
+              <Edit className="h-4 w-4 text-slate-600" />
+            )}
           </Button>
-          <Button variant="ghost" size="icon" onClick={() => onDeleteCategory(category.id)}>
-            <Trash2 className="h-4 w-4 text-red-600" />
+          <Button 
+            variant="ghost" 
+            size="icon" 
+            onClick={() => {
+              console.log('Delete category button clicked for category:', category.id);
+              onDeleteCategory(category.id);
+            }}
+            disabled={isLoading.isUpdatingCategory || isLoading.isDeletingCategory || isLoading.isCreatingResource || isLoading.isUpdatingResource || isLoading.isDeletingResource}
+          >
+            {isLoading.isDeletingCategory ? (
+              <Loader2 className="h-4 w-4 text-red-600 animate-spin" />
+            ) : (
+              <Trash2 className="h-4 w-4 text-red-600" />
+            )}
           </Button>
-          <Button variant="link" className="text-sm font-medium text-indigo-600 hover:text-indigo-800" onClick={handleOpenAddResourceModal}>
-            + Add Resource
+          <Button 
+            variant="link" 
+            className="text-sm font-medium text-indigo-600 hover:text-indigo-800" 
+            onClick={handleOpenAddResourceModal}
+            disabled={isLoading.isUpdatingCategory || isLoading.isDeletingCategory || isLoading.isCreatingResource || isLoading.isUpdatingResource || isLoading.isDeletingResource}
+          >
+            {isLoading.isCreatingResource ? (
+              <>
+                <Loader2 className="mr-1 h-3 w-3 animate-spin" />
+                Adding...
+              </>
+            ) : (
+              "+ Add Resource"
+            )}
           </Button>
         </div>
       </CardHeader>
@@ -109,9 +156,32 @@ const ResourceCategoryCard: React.FC<ResourceCategoryCardProps> = ({
                 </div>
               </div>
               <div className="flex space-x-2">
-                <Button variant="link" className="text-sm font-medium text-indigo-600 hover:text-indigo-800" onClick={() => handleOpenEditResourceModal(resource)}>Edit</Button>
-                <Button variant="ghost" size="icon" onClick={() => onDeleteResource(category.id, resource.id)}>
-                  <Trash2 className="h-4 w-4 text-red-600" />
+                <Button 
+                  variant="link" 
+                  className="text-sm font-medium text-indigo-600 hover:text-indigo-800" 
+                  onClick={() => handleOpenEditResourceModal(resource)}
+                  disabled={isLoading.isUpdatingCategory || isLoading.isDeletingCategory || isLoading.isCreatingResource || isLoading.isUpdatingResource || isLoading.isDeletingResource}
+                >
+                  {isLoading.isUpdatingResource ? (
+                    <>
+                      <Loader2 className="mr-1 h-3 w-3 animate-spin" />
+                      Updating...
+                    </>
+                  ) : (
+                    "Edit"
+                  )}
+                </Button>
+                <Button 
+                  variant="ghost" 
+                  size="icon" 
+                  onClick={() => onDeleteResource(category.id, resource.id)}
+                  disabled={isLoading.isUpdatingCategory || isLoading.isDeletingCategory || isLoading.isCreatingResource || isLoading.isUpdatingResource || isLoading.isDeletingResource}
+                >
+                  {isLoading.isDeletingResource ? (
+                    <Loader2 className="h-4 w-4 text-red-600 animate-spin" />
+                  ) : (
+                    <Trash2 className="h-4 w-4 text-red-600" />
+                  )}
                 </Button>
               </div>
             </div>

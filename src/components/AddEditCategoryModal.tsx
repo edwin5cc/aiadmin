@@ -12,12 +12,15 @@ import {
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Loader2 } from "lucide-react";
 
 interface AddEditCategoryModalProps {
   isOpen: boolean;
   onClose: () => void;
   onSave: (name: string) => void;
   initialName?: string;
+  isLoading?: boolean;
+  isEditing?: boolean;
 }
 
 const AddEditCategoryModal: React.FC<AddEditCategoryModalProps> = ({
@@ -25,6 +28,8 @@ const AddEditCategoryModal: React.FC<AddEditCategoryModalProps> = ({
   onClose,
   onSave,
   initialName = "",
+  isLoading = false,
+  isEditing = false,
 }) => {
   const [categoryName, setCategoryName] = useState(initialName);
 
@@ -44,9 +49,19 @@ const AddEditCategoryModal: React.FC<AddEditCategoryModalProps> = ({
     <Dialog open={isOpen} onOpenChange={onClose}>
       <DialogContent className="sm:max-w-[425px]">
         <DialogHeader>
-          <DialogTitle>{initialName ? "Edit Category" : "Add New Category"}</DialogTitle>
+          <DialogTitle>
+            {isEditing ? "Edit Category" : "Add New Category"}
+            {isLoading && (
+              <div className="flex items-center mt-2">
+                <Loader2 className="h-4 w-4 animate-spin mr-2 text-indigo-600" />
+                <span className="text-sm text-slate-600">
+                  {isEditing ? "Updating category..." : "Creating category..."}
+                </span>
+              </div>
+            )}
+          </DialogTitle>
           <DialogDescription>
-            {initialName ? "Make changes to your category here." : "Add a new resource category."}
+            {isEditing ? "Make changes to your category here." : "Add a new resource category."}
           </DialogDescription>
         </DialogHeader>
         <div className="grid gap-4 py-4">
@@ -64,9 +79,22 @@ const AddEditCategoryModal: React.FC<AddEditCategoryModalProps> = ({
           </div>
         </div>
         <DialogFooter>
-          <Button variant="outline" onClick={onClose}>Cancel</Button>
-          <Button onClick={handleSubmit} className="bg-indigo-600 text-white font-semibold hover:bg-indigo-700">
-            {initialName ? "Save Changes" : "Add Category"}
+          <Button variant="outline" onClick={onClose} disabled={isLoading}>
+            Cancel
+          </Button>
+          <Button 
+            onClick={handleSubmit} 
+            className="bg-indigo-600 text-white font-semibold hover:bg-indigo-700"
+            disabled={isLoading || !categoryName.trim()}
+          >
+            {isLoading ? (
+              <>
+                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                {isEditing ? "Updating..." : "Creating..."}
+              </>
+            ) : (
+              isEditing ? "Save Changes" : "Add Category"
+            )}
           </Button>
         </DialogFooter>
       </DialogContent>

@@ -3,7 +3,10 @@ import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route } from "react-router-dom";
+import { AuthProvider } from "./contexts/AuthContext";
 import Layout from "./components/Layout";
+import ProtectedRoute from "./components/ProtectedRoute";
+import LoginPage from "./pages/LoginPage";
 import DashboardPage from "./pages/DashboardPage";
 import NotFound from "./pages/NotFound";
 
@@ -13,7 +16,7 @@ import ResourcesPage from "./pages/ResourcesPage";
 import LandingPage from "./pages/LandingPage";
 import AIConfigPage from "./pages/AIConfigPage";
 import PromptLibraryPage from "./pages/PromptLibraryPage";
-import UserActivityPage from "./pages/UserActivityPage"; // New import
+import UserActivityPage from "./pages/UserActivityPage";
 
 const queryClient = new QueryClient();
 
@@ -23,19 +26,26 @@ const App = () => (
       <Toaster />
       <Sonner />
       <BrowserRouter>
-        <Routes>
-          <Route path="/" element={<Layout />}>
-            <Route index element={<DashboardPage />} />
-            <Route path="courses" element={<CoursesPage />} />
-            <Route path="resources" element={<ResourcesPage />} />
-            <Route path="landing-page" element={<LandingPage />} />
-            <Route path="ai-config" element={<AIConfigPage />} />
-            <Route path="prompts" element={<PromptLibraryPage />} />
-            <Route path="user-activity" element={<UserActivityPage />} /> {/* New route */}
-            {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
-            <Route path="*" element={<NotFound />} />
-          </Route>
-        </Routes>
+        <AuthProvider>
+          <Routes>
+            <Route path="/login" element={<LoginPage />} />
+            <Route path="/" element={
+              <ProtectedRoute>
+                <Layout />
+              </ProtectedRoute>
+            }>
+              <Route index element={<DashboardPage />} />
+              <Route path="courses" element={<CoursesPage />} />
+              <Route path="resources" element={<ResourcesPage />} />
+              <Route path="landing-page" element={<LandingPage />} />
+              <Route path="ai-config" element={<AIConfigPage />} />
+              <Route path="prompts" element={<PromptLibraryPage />} />
+              <Route path="user-activity" element={<UserActivityPage />} />
+              {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
+              <Route path="*" element={<NotFound />} />
+            </Route>
+          </Routes>
+        </AuthProvider>
       </BrowserRouter>
     </TooltipProvider>
   </QueryClientProvider>

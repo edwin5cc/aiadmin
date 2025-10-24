@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Button } from "@/components/ui/button";
 import {
   Select,
@@ -12,14 +12,19 @@ import {
 import ResourceCategoryCard from '@/components/ResourceCategoryCard';
 import AddEditCategoryModal from '@/components/AddEditCategoryModal';
 import { toast } from "sonner";
+import { usePortals, useResources, useCategories, categoriesApi, resourcesApi, ApiError } from '@/hooks/useApi';
+import { Portal, Category, ResourceCard } from '@/services/api';
+import { useAuth } from '@/contexts/AuthContext';
+import { Loader2 } from "lucide-react";
 
 interface Resource {
   id: string;
   name: string;
   type: 'link' | 'file' | 'text';
   value: string;
-  description?: string; // New optional description field
+  description?: string;
   fileName?: string;
+  thumbnail_url?: string;
 }
 
 interface ResourceCategory {
@@ -29,26 +34,148 @@ interface ResourceCategory {
 }
 
 const ResourcesPage = () => {
-  const [resourceCategories, setResourceCategories] = useState<ResourceCategory[]>([
-    {
-      id: 'cat-1',
-      name: 'Marketing Templates',
-      resources: [
-        { id: 'res-1', name: 'Social Media Content Calendar', type: 'link', value: 'https://docs.google.com/spreadsheets/d/...', description: 'A comprehensive calendar for planning social media posts.' },
-        { id: 'res-2', name: 'Email Campaign Checklist.pdf', type: 'file', value: 'file-upload-email-checklist.pdf', fileName: 'Email Campaign Checklist.pdf', description: 'Checklist to ensure all steps are covered for email campaigns.' },
-      ],
-    },
-    {
-      id: 'cat-2',
-      name: 'Business Strategy Guides',
-      resources: [
-        { id: 'res-3', name: 'SWOT Analysis Template', type: 'text', value: 'A SWOT analysis helps identify Strengths, Weaknesses, Opportunities, and Threats...', description: 'A guide and template for conducting a SWOT analysis.' },
-      ],
-    },
-  ]);
-
+  const [selectedPortalSlug, setSelectedPortalSlug] = useState<string>('business-owner');
+  const [selectedPortalId, setSelectedPortalId] = useState<string>('');
+  const [resourceCategories, setResourceCategories] = useState<ResourceCategory[]>([]);
   const [isCategoryModalOpen, setIsCategoryModalOpen] = useState(false);
   const [editingCategory, setEditingCategory] = useState<{ id: string; name: string } | undefined>(undefined);
+  
+  // Specific loading states for better UX
+  const [isCreatingCategory, setIsCreatingCategory] = useState(false);
+  const [isUpdatingCategory, setIsUpdatingCategory] = useState(false);
+  const [isDeletingCategory, setIsDeletingCategory] = useState(false);
+  const [isCreatingResource, setIsCreatingResource] = useState(false);
+  const [isUpdatingResource, setIsUpdatingResource] = useState(false);
+  const [isDeletingResource, setIsDeletingResource] = useState(false);
+
+  // Get authentication status
+  const { isAuthenticated, user } = useAuth();
+  
+  // Debug authentication
+  useEffect(() => {
+    console.log('Authentication status:', isAuthenticated);
+    console.log('User data:', user);
+  }, [isAuthenticated, user]);
+
+  // Fetch portals
+  const { data: portalsData, isLoading: portalsLoading, error: portalsError } = usePortals();
+  
+  // Fetch categories for selected portal
+  const { data: categoriesData, isLoading: categoriesLoading, refetch: refetchCategories } = useCategories(selectedPortalId);
+  
+  // Debug categories data
+  useEffect(() => {
+    console.log('=== CATEGORIES DEBUG ===');
+    console.log('Selected portal slug:', selectedPortalSlug);
+    console.log('Selected portal ID:', selectedPortalId);
+    console.log('Categories data:', categoriesData);
+    console.log('Categories loading:', categoriesLoading);
+    console.log('========================');
+  }, [categoriesData, categoriesLoading, selectedPortalId, selectedPortalSlug]);
+  
+  // Fetch resources for selected portal
+  const { data: resourcesData, isLoading: resourcesLoading, refetch: refetchResources } = useResources({
+    portal_id: selectedPortalId,
+  });
+
+  // Update selected portal ID when portal slug changes
+  useEffect(() => {
+    if (portalsData?.portals) {
+      const selectedPortal = portalsData.portals.find((portal: Portal) => portal.slug === selectedPortalSlug);
+      if (selectedPortal) {
+        setSelectedPortalId(selectedPortal.id);
+      }
+    } else {
+      // Fallback to hardcoded portal IDs if API fails
+      const fallbackPortals = [
+        { slug: 'business-owner', id: 'ad917aff-a9d7-11f0-9178-5254da9a0f0a', title: 'Business Owner Portal' },
+        { slug: 'founder', id: '17816878-834d-4d4d-9591-6f3b82116200', title: 'Founder Portal' }
+      ];
+      
+      const selectedPortal = fallbackPortals.find(portal => portal.slug === selectedPortalSlug);
+      if (selectedPortal) {
+        setSelectedPortalId(selectedPortal.id);
+      }
+    }
+  }, [selectedPortalSlug, portalsData]);
+
+  // Transform backend data to frontend format
+  useEffect(() => {
+    if (categoriesData?.categories) {
+      console.log('=== DATA TRANSFORMATION DEBUG ===');
+      console.log('Categories from API:', categoriesData.categories);
+      console.log('Expected portal ID:', selectedPortalId);
+      
+      // Filter categories by portal_id on frontend (backend not filtering properly)
+      const filteredCategories = categoriesData.categories.filter((category: any) => {
+        const matches = category.portal_id === selectedPortalId;
+        console.log(`Category "${category.name}" portal_id: ${category.portal_id}, matches: ${matches}`);
+        return matches;
+      });
+      
+      console.log('Filtered categories:', filteredCategories);
+      
+      // Check if categories have portal_id field
+      filteredCategories.forEach((category: Category, index: number) => {
+        console.log(`Filtered Category ${index}:`, category);
+        if ('portal_id' in category) {
+          console.log(`Filtered Category ${index} portal_id:`, (category as any).portal_id);
+        }
+      });
+      
+      // Create a map of category IDs to names
+      const categoryMap = new Map<string, string>();
+      filteredCategories.forEach((category: Category) => {
+        categoryMap.set(category.id, category.name);
+      });
+      
+      // Group resources by category
+      const categoriesMap = new Map<string, ResourceCategory>();
+      
+      // First, create categories from the filtered categories API (even if they have no resources)
+      filteredCategories.forEach((category: Category) => {
+        categoriesMap.set(category.id, {
+          id: category.id,
+          name: category.name,
+          resources: []
+        });
+      });
+      
+      // Then, add resources to their respective categories
+      if (resourcesData?.resources) {
+        resourcesData.resources.forEach((resource: ResourceCard) => {
+          const categoryId = resource.category_id || 'uncategorized';
+          
+          // If resource has no category, create an uncategorized one
+          if (!resource.category_id) {
+            if (!categoriesMap.has('uncategorized')) {
+              categoriesMap.set('uncategorized', {
+                id: 'uncategorized',
+                name: 'Uncategorized',
+                resources: []
+              });
+            }
+          }
+          
+          const category = categoriesMap.get(categoryId);
+          if (category) {
+            category.resources.push({
+              id: resource.id,
+              name: resource.title,
+              type: 'link',
+              value: resource.url,
+              description: resource.description,
+            });
+          }
+        });
+      }
+      
+      const finalCategories = Array.from(categoriesMap.values());
+      console.log('Final resource categories:', finalCategories);
+      console.log('=====================================');
+      setResourceCategories(finalCategories);
+    }
+  }, [resourcesData, categoriesData, selectedPortalId]);
 
   const handleOpenAddCategoryModal = () => {
     setEditingCategory(undefined);
@@ -60,90 +187,373 @@ const ResourcesPage = () => {
     setIsCategoryModalOpen(true);
   };
 
-  const handleSaveCategory = (name: string) => {
-    if (editingCategory) {
-      setResourceCategories(prev =>
-        prev.map(cat => (cat.id === editingCategory.id ? { ...cat, name } : cat))
-      );
-      toast.success("Category updated successfully!");
-    } else {
-      const newCategory: ResourceCategory = {
-        id: `cat-${Date.now()}`,
-        name,
-        resources: [],
-      };
-      setResourceCategories(prev => [...prev, newCategory]);
-      toast.success("New category added successfully!");
+  const handleSaveCategory = async (name: string) => {
+    if (!selectedPortalId) {
+      toast.error("Please select a portal first");
+      return;
     }
-    setIsCategoryModalOpen(false);
+
+    if (editingCategory) {
+      setIsUpdatingCategory(true);
+      toast.loading("Updating category...", { id: "update-category" });
+    } else {
+      setIsCreatingCategory(true);
+      toast.loading("Creating category...", { id: "create-category" });
+    }
+
+    try {
+      if (editingCategory) {
+        // Update existing category
+        await categoriesApi.updateCategory(editingCategory.id, { 
+          portal_id: selectedPortalId,
+          name 
+        });
+        toast.success("✅ Category updated successfully!", { 
+          id: "update-category",
+          duration: 4000,
+          description: "The category has been updated."
+        });
+      } else {
+        // Create new category
+        await categoriesApi.createCategory({ 
+          portal_id: selectedPortalId,
+          name 
+        });
+        toast.success("✅ Category created successfully!", { 
+        id: "create-category",
+        duration: 4000,
+        description: "The category has been added to your portal."
+      });
+      }
+      
+      // Refresh categories and resources to show updated data
+      refetchCategories();
+      refetchResources();
+    } catch (error) {
+      const apiError = error as ApiError;
+      const errorMessage = apiError.message || "Failed to save category";
+      toast.error(`❌ ${errorMessage}`, { 
+        id: editingCategory ? "update-category" : "create-category",
+        duration: 5000,
+        description: "Please try again or contact support if the issue persists."
+      });
+    } finally {
+      if (editingCategory) {
+        setIsUpdatingCategory(false);
+      } else {
+        setIsCreatingCategory(false);
+      }
+      setIsCategoryModalOpen(false);
+    }
   };
 
-  const handleDeleteCategory = (categoryId: string) => {
-    setResourceCategories(prev => prev.filter(cat => cat.id !== categoryId));
-    toast.success("Category deleted successfully!");
+  const handleDeleteCategory = async (categoryId: string) => {
+    console.log('=== DELETE CATEGORY DEBUG ===');
+    console.log('Category ID:', categoryId);
+    console.log('Selected Portal ID:', selectedPortalId);
+    console.log('Authentication status:', isAuthenticated);
+    console.log('=============================');
+    
+    setIsDeletingCategory(true);
+    toast.loading("Deleting category...", { id: "delete-category" });
+    
+    try {
+      console.log('Calling categoriesApi.deleteCategory with ID:', categoryId);
+      const result = await categoriesApi.deleteCategory(categoryId);
+      console.log('Delete category result:', result);
+      
+      toast.success("✅ Category deleted successfully!", { 
+        id: "delete-category",
+        duration: 4000,
+        description: "The category and all its resources have been removed."
+      });
+      refetchCategories();
+      refetchResources();
+    } catch (error) {
+      const apiError = error as ApiError;
+      console.error('Category deletion error:', apiError);
+      console.error('Error status:', apiError.status);
+      console.error('Error response:', apiError.response);
+      console.error('Error message:', apiError.message);
+      
+      let errorMessage = apiError.message || "Failed to delete category";
+      
+      // Handle specific error cases
+      if (apiError.status === 400) {
+        errorMessage = "Cannot delete category that is being used by resources";
+      } else if (apiError.status === 404) {
+        errorMessage = "Category not found";
+      } else if (apiError.status === 403) {
+        errorMessage = "You don't have permission to delete this category";
+      }
+      
+      toast.error(`❌ ${errorMessage}`, { 
+        id: "delete-category",
+        duration: 5000,
+        description: "Please try again or contact support if the issue persists."
+      });
+    } finally {
+      setIsDeletingCategory(false);
+    }
   };
 
-  const handleAddResource = (categoryId: string, resourceData: Omit<Resource, 'id'>) => {
-    setResourceCategories(prev =>
-      prev.map(cat =>
-        cat.id === categoryId
-          ? { ...cat, resources: [...cat.resources, { ...resourceData, id: `res-${Date.now()}` }] }
-          : cat
-      )
-    );
+  const handleAddResource = async (categoryId: string, resourceData: Omit<Resource, 'id'>) => {
+    if (!selectedPortalId) {
+      toast.error("Please select a portal first");
+      return;
+    }
+
+    setIsCreatingResource(true);
+    toast.loading("Adding resource...", { id: "add-resource" });
+
+    try {
+      // Validate URL format
+      if (resourceData.type === 'link' && resourceData.value) {
+        try {
+          new URL(resourceData.value);
+        } catch {
+          toast.error("❌ Please enter a valid URL (e.g., https://example.com)", { id: "add-resource" });
+          setIsCreatingResource(false);
+          return;
+        }
+      }
+
+      const resourcePayload: any = {
+        portal_id: selectedPortalId,
+        title: resourceData.name,
+        description: resourceData.description,
+        url: resourceData.value,
+        display_order: 1,
+        is_published: true,
+      };
+
+      // Only add category_id if it's not uncategorized
+      if (categoryId !== 'uncategorized') {
+        resourcePayload.category_id = categoryId;
+      }
+
+      // Add thumbnail_url if provided (for future enhancement)
+      if (resourceData.thumbnail_url) {
+        resourcePayload.thumbnail_url = resourceData.thumbnail_url;
+      }
+
+      console.log('Creating resource with payload:', resourcePayload);
+      
+      await resourcesApi.createResource(resourcePayload);
+      
+      toast.success("✅ Resource added successfully!", { 
+        id: "add-resource",
+        duration: 4000,
+        description: "The resource has been added to the category."
+      });
+      refetchResources();
+    } catch (error) {
+      const apiError = error as ApiError;
+      console.error('Resource creation error:', apiError);
+      console.error('Error response:', apiError.response);
+      
+      let errorMessage = apiError.message || "Failed to add resource";
+      
+      // Handle specific validation errors
+      if (apiError.response?.validation) {
+        console.log('Validation errors:', apiError.response.validation);
+        const validationErrors = apiError.response.validation
+          .map((v: any) => `${v.field}: ${v.message}`)
+          .join(', ');
+        errorMessage = `Validation failed: ${validationErrors}`;
+      }
+      
+      toast.error(`❌ ${errorMessage}`, { 
+        id: "add-resource",
+        duration: 5000,
+        description: "Please check your input and try again."
+      });
+    } finally {
+      setIsCreatingResource(false);
+    }
   };
 
-  const handleEditResource = (categoryId: string, resourceId: string, updatedResourceData: Omit<Resource, 'id'>) => {
-    setResourceCategories(prev =>
-      prev.map(cat =>
-        cat.id === categoryId
-          ? {
-              ...cat,
-              resources: cat.resources.map(res =>
-                res.id === resourceId ? { ...res, ...updatedResourceData } : res
-              ),
-            }
-          : cat
-      )
-    );
+  const handleEditResource = async (categoryId: string, resourceId: string, updatedResourceData: Omit<Resource, 'id'>) => {
+    setIsUpdatingResource(true);
+    toast.loading("Updating resource...", { id: "update-resource" });
+    
+    try {
+      // Validate URL format if it's a link
+      if (updatedResourceData.type === 'link' && updatedResourceData.value) {
+        try {
+          new URL(updatedResourceData.value);
+        } catch {
+          toast.error("❌ Please enter a valid URL (e.g., https://example.com)", { id: "update-resource" });
+          setIsUpdatingResource(false);
+          return;
+        }
+      }
+
+      const updatePayload: any = {
+        title: updatedResourceData.name,
+        description: updatedResourceData.description,
+        url: updatedResourceData.value,
+        is_published: true, // Default to published
+      };
+
+      // Only add category_id if it's not uncategorized
+      if (categoryId !== 'uncategorized') {
+        updatePayload.category_id = categoryId;
+      }
+      
+      await resourcesApi.updateResource(resourceId, updatePayload);
+      
+      toast.success("✅ Resource updated successfully!", { 
+        id: "update-resource",
+        duration: 4000,
+        description: "The resource has been updated."
+      });
+      refetchResources();
+    } catch (error) {
+      const apiError = error as ApiError;
+      console.error('Resource update error:', apiError);
+      
+      let errorMessage = apiError.message || "Failed to update resource";
+      
+      // Handle specific validation errors
+      if (apiError.response?.validation) {
+        const validationErrors = apiError.response.validation
+          .map((v: any) => `${v.field}: ${v.message}`)
+          .join(', ');
+        errorMessage = `Validation failed: ${validationErrors}`;
+      }
+      
+      toast.error(`❌ ${errorMessage}`, { 
+        id: "update-resource",
+        duration: 5000,
+        description: "Please check your input and try again."
+      });
+    } finally {
+      setIsUpdatingResource(false);
+    }
   };
 
-  const handleDeleteResource = (categoryId: string, resourceId: string) => {
-    setResourceCategories(prev =>
-      prev.map(cat =>
-        cat.id === categoryId
-          ? { ...cat, resources: cat.resources.filter(res => res.id !== resourceId) }
-          : cat
-      )
-    );
-    toast.success("Resource deleted successfully!");
+  const handleDeleteResource = async (categoryId: string, resourceId: string) => {
+    // Check if resourceId is valid
+    if (!resourceId || resourceId === 'undefined' || resourceId === 'null') {
+      toast.error("❌ Invalid resource ID", { id: "delete-resource" });
+      return;
+    }
+    
+    setIsDeletingResource(true);
+    toast.loading("Deleting resource...", { id: "delete-resource" });
+    
+    try {
+      await resourcesApi.deleteResource(resourceId);
+      
+      toast.success("✅ Resource deleted successfully!", { 
+        id: "delete-resource",
+        duration: 4000,
+        description: "The resource has been removed from the category."
+      });
+      refetchResources();
+    } catch (error) {
+      const apiError = error as ApiError;
+      console.error('Resource deletion error:', apiError);
+      
+      let errorMessage = apiError.message || "Failed to delete resource";
+      
+      // Handle specific error cases
+      if (apiError.status === 404) {
+        errorMessage = "Resource not found";
+      } else if (apiError.status === 403) {
+        errorMessage = "You don't have permission to delete this resource";
+      } else if (apiError.status === 400) {
+        errorMessage = "Invalid request - resource cannot be deleted";
+      } else if (apiError.status === 401) {
+        errorMessage = "Authentication failed - please login again";
+      }
+      
+      toast.error(`❌ ${errorMessage}`, { 
+        id: "delete-resource",
+        duration: 5000,
+        description: "Please try again or contact support if the issue persists."
+      });
+    } finally {
+      setIsDeletingResource(false);
+    }
   };
 
   return (
     <div className="p-4">
       <div className="flex items-center justify-between mb-6">
         <h2 className="text-3xl font-bold">Resources</h2>
-        <Button onClick={handleOpenAddCategoryModal} className="bg-indigo-600 text-white font-semibold hover:bg-indigo-700">Add New Category</Button>
+        <Button 
+          onClick={handleOpenAddCategoryModal} 
+          className="bg-indigo-600 text-white font-semibold hover:bg-indigo-700"
+          disabled={isCreatingCategory || isUpdatingCategory || isDeletingCategory || isCreatingResource || isUpdatingResource || isDeletingResource || !selectedPortalId}
+        >
+          {isCreatingCategory ? (
+            <>
+              <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+              Creating Category...
+            </>
+          ) : isUpdatingCategory ? (
+            <>
+              <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+              Updating Category...
+            </>
+          ) : isDeletingCategory ? (
+            <>
+              <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+              Deleting Category...
+            </>
+          ) : (
+            "Add New Category"
+          )}
+        </Button>
       </div>
 
       {/* Portal Selector */}
       <div className="mb-6">
         <label htmlFor="portal-select-resources" className="block text-sm font-medium text-slate-700 mb-1">Select Portal</label>
-        <Select defaultValue="business-owner">
+        <Select value={selectedPortalSlug} onValueChange={setSelectedPortalSlug}>
           <SelectTrigger id="portal-select-resources" className="w-full md:w-1/3">
-            <SelectValue placeholder="Select a portal" />
+            <SelectValue placeholder={portalsLoading ? "Loading portals..." : "Select a portal"} />
           </SelectTrigger>
           <SelectContent>
-            <SelectItem value="business-owner">Business Owner Portal</SelectItem>
-            <SelectItem value="founder">Founder Portal</SelectItem>
+            {portalsLoading ? (
+              <SelectItem value="loading" disabled>Loading portals...</SelectItem>
+            ) : portalsError ? (
+              <>
+                <SelectItem value="business-owner">Business Owner Portal</SelectItem>
+                <SelectItem value="founder">Founder Portal</SelectItem>
+              </>
+            ) : portalsData?.portals?.length > 0 ? (
+              portalsData.portals.map((portal: Portal) => (
+                <SelectItem key={portal.id} value={portal.slug}>
+                  {portal.slug === 'business-owner' ? 'Business Owner Portal' : 
+                   portal.slug === 'founder' ? 'Founder Portal' : 
+                   portal.title}
+                </SelectItem>
+              ))
+            ) : (
+              <>
+                <SelectItem value="business-owner">Business Owner Portal</SelectItem>
+                <SelectItem value="founder">Founder Portal</SelectItem>
+              </>
+            )}
           </SelectContent>
         </Select>
       </div>
 
       {/* Resource List */}
       <div className="bg-white p-6 rounded-lg shadow space-y-4">
-        {resourceCategories.length === 0 ? (
-          <p className="text-slate-500">No resource categories yet. Add one above!</p>
+        {resourcesLoading || categoriesLoading ? (
+          <div className="flex items-center justify-center py-8">
+            <Loader2 className="h-6 w-6 animate-spin mr-2 text-indigo-600" />
+            <p className="text-slate-500">Loading resources and categories...</p>
+          </div>
+        ) : resourceCategories.length === 0 ? (
+          <div className="text-center py-8">
+            <p className="text-slate-500 mb-4">No resource categories yet.</p>
+            <p className="text-sm text-slate-400">Add a category above to get started!</p>
+          </div>
         ) : (
           resourceCategories.map(category => (
             <ResourceCategoryCard
@@ -154,6 +564,14 @@ const ResourcesPage = () => {
               onAddResource={handleAddResource}
               onEditResource={handleEditResource}
               onDeleteResource={handleDeleteResource}
+              isLoading={{
+                isCreatingCategory,
+                isUpdatingCategory,
+                isDeletingCategory,
+                isCreatingResource,
+                isUpdatingResource,
+                isDeletingResource
+              }}
             />
           ))
         )}
@@ -164,6 +582,8 @@ const ResourcesPage = () => {
         onClose={() => setIsCategoryModalOpen(false)}
         onSave={handleSaveCategory}
         initialName={editingCategory?.name}
+        isLoading={isCreatingCategory || isUpdatingCategory}
+        isEditing={!!editingCategory}
       />
     </div>
   );

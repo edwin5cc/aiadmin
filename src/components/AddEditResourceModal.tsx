@@ -52,10 +52,34 @@ const AddEditResourceModal: React.FC<AddEditResourceModalProps> = ({
   }, [initialResource, isOpen]);
 
   const handleSubmit = () => {
-    if (resourceName.trim() && resourceValue.trim()) {
-      onSave({ name: resourceName, type: resourceType, value: resourceValue, description: resourceDescription.trim() || undefined, fileName });
-      onClose();
+    if (!resourceName.trim()) {
+      alert("Please enter a resource name");
+      return;
     }
+    
+    if (!resourceValue.trim()) {
+      alert("Please enter a resource value");
+      return;
+    }
+    
+    // Validate URL for link type
+    if (resourceType === "link") {
+      try {
+        new URL(resourceValue);
+      } catch {
+        alert("Please enter a valid URL (e.g., https://example.com)");
+        return;
+      }
+    }
+    
+    onSave({ 
+      name: resourceName, 
+      type: resourceType, 
+      value: resourceValue, 
+      description: resourceDescription.trim() || undefined, 
+      fileName 
+    });
+    onClose();
   };
 
   const handleFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
@@ -107,15 +131,20 @@ const AddEditResourceModal: React.FC<AddEditResourceModalProps> = ({
           {resourceType === "link" && (
             <div className="grid grid-cols-4 items-center gap-4">
               <Label htmlFor="resource-url" className="text-right">
-                URL
+                URL *
               </Label>
               <Input
                 id="resource-url"
+                type="url"
                 value={resourceValue}
                 onChange={(e) => setResourceValue(e.target.value)}
                 className="col-span-3"
                 placeholder="https://example.com/your-resource"
+                required
               />
+              <p className="col-span-3 col-start-2 text-xs text-slate-500 mt-1">
+                Must be a valid URL starting with http:// or https://
+              </p>
             </div>
           )}
 
