@@ -1,6 +1,6 @@
 import { useQuery, UseQueryResult } from '@tanstack/react-query';
 import { dashboardApi, auditLogsApi, portalsApi, categoriesApi, resourcesApi, ApiError } from '../services/api';
-import { ApiResponse, DashboardData, AuditLogsResponse } from '../types/api';
+import { ApiResponse, DashboardData, AuditLog } from '../types/api';
 import { useAuth } from '../contexts/AuthContext';
 
 // Re-export APIs and types for convenience
@@ -82,7 +82,7 @@ export const useAuditLogs = (params: {
   portal_id?: string;
   start_date?: string;
   end_date?: string;
-} = {}): UseQueryResult<ApiResponse<AuditLogsResponse>, ApiError> => {
+} = {}): UseQueryResult<{ error: boolean; message: string; data: AuditLog[] }, ApiError> => {
   const { isAuthenticated } = useAuth();
   
   return useQuery({

@@ -188,14 +188,22 @@ const DashboardPage = () => {
               </div>
             ))}
           </div>
-        ) : auditLogsData?.data?.data?.length ? (
+        ) : auditLogsData?.data?.length ? (
           <ul className="space-y-3">
-            {auditLogsData.data.data.map((log) => (
-              <li key={log.id} className="flex items-center justify-between text-sm">
-                <p>
-                  <span className="font-medium">{log.admin_user.name}</span> {log.description}
-                </p>
-                <span className="text-slate-400">{formatTimeAgo(log.created_at)}</span>
+            {auditLogsData.data.map((log) => (
+              <li key={log.id} className="flex items-start justify-between text-sm">
+                <div className="flex items-start space-x-2 flex-1">
+                  <span className="text-slate-400 mt-1">•</span>
+                  <div className="flex-1">
+                    <p className="text-slate-700">
+                      <span className="font-medium text-slate-900">{log.admin_user.name}</span> {log.description}
+                    </p>
+                    <p className="text-xs text-slate-500 mt-1">
+                      {log.action.type} • {log.action.entity_type} • {log.metadata.portal_title}
+                    </p>
+                  </div>
+                </div>
+                <span className="text-slate-400 text-xs ml-4 flex-shrink-0">{formatTimeAgo(log.created_at)}</span>
               </li>
             ))}
           </ul>

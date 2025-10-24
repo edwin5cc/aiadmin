@@ -1,4 +1,4 @@
-import { ApiResponse, DashboardData, AuditLogsResponse } from '../types/api';
+import { ApiResponse, DashboardData, AuditLog } from '../types/api';
 import { config } from '../config/env';
 
 // Environment variables
@@ -151,7 +151,7 @@ export const auditLogsApi = {
     portal_id?: string;
     start_date?: string;
     end_date?: string;
-  } = {}): Promise<ApiResponse<AuditLogsResponse>> {
+  } = {}): Promise<{ error: boolean; message: string; data: AuditLog[] }> {
     const token = authApi.getToken();
     
     if (!token) {
@@ -169,9 +169,10 @@ export const auditLogsApi = {
     const queryString = searchParams.toString();
     const endpoint = `/v1/api/aiaccelerator/admin/lambda/audit-logs${queryString ? `?${queryString}` : ''}`;
     
-    return apiRequest<ApiResponse<AuditLogsResponse>>(endpoint, {
+    return apiRequest<{ error: boolean; message: string; data: AuditLog[] }>(endpoint, {
       headers: {
         'Authorization': `Bearer ${token}`,
+        'x-project': X_PROJECT_ID,
       },
     });
   },
