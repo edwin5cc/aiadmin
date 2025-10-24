@@ -14,12 +14,13 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Upload } from 'lucide-react';
+import { Upload, FileText } from 'lucide-react';
+import FileViewer from './FileViewer';
 
 interface AddEditResourceModalProps {
   isOpen: boolean;
   onClose: () => void;
-  onSave: (resource: { name: string; type: string; value: string; description?: string; fileName?: string }) => void;
+  onSave: (resource: { name: string; type: string; value: string; description?: string; fileName?: string; file?: File }) => void;
   initialResource?: { name: string; type: string; value: string; description?: string; fileName?: string };
 }
 
@@ -30,10 +31,11 @@ const AddEditResourceModal: React.FC<AddEditResourceModalProps> = ({
   initialResource,
 }) => {
   const [resourceName, setResourceName] = useState(initialResource?.name || "");
-  const [resourceType, setResourceType] = useState(initialResource?.type || "link");
+  const [resourceType, setResourceType] = useState(initialResource?.type || "url");
   const [resourceValue, setResourceValue] = useState(initialResource?.value || "");
   const [resourceDescription, setResourceDescription] = useState(initialResource?.description || ""); // New state for description
   const [fileName, setFileName] = useState(initialResource?.fileName || "");
+  const [selectedFile, setSelectedFile] = useState<File | null>(null);
 
   useEffect(() => {
     if (initialResource) {
@@ -42,12 +44,14 @@ const AddEditResourceModal: React.FC<AddEditResourceModalProps> = ({
       setResourceValue(initialResource.value);
       setResourceDescription(initialResource.description || ""); // Set description
       setFileName(initialResource.fileName || "");
+      setSelectedFile(null); // Reset file for editing
     } else {
       setResourceName("");
-      setResourceType("link");
+      setResourceType("url");
       setResourceValue("");
       setResourceDescription(""); // Clear description
       setFileName("");
+      setSelectedFile(null);
     }
   }, [initialResource, isOpen]);
 
@@ -57,13 +61,18 @@ const AddEditResourceModal: React.FC<AddEditResourceModalProps> = ({
       return;
     }
     
-    if (!resourceValue.trim()) {
+    if (!resourceValue.trim() && resourceType !== 'file') {
       alert("Please enter a resource value");
       return;
     }
     
-    // Validate URL for link type
-    if (resourceType === "link") {
+    if (resourceType === 'file' && !selectedFile) {
+      alert("Please select a file to upload");
+      return;
+    }
+    
+    // Validate URL for url type
+    if (resourceType === "url") {
       try {
         new URL(resourceValue);
       } catch {
@@ -72,12 +81,22 @@ const AddEditResourceModal: React.FC<AddEditResourceModalProps> = ({
       }
     }
     
+    console.log('Submitting resource:', {
+      name: resourceName,
+      type: resourceType,
+      value: resourceType === 'file' ? selectedFile?.name || '' : resourceValue,
+      description: resourceDescription.trim() || undefined,
+      fileName: resourceType === 'file' ? selectedFile?.name : fileName,
+      file: resourceType === 'file' ? selectedFile || undefined : undefined
+    });
+    
     onSave({ 
       name: resourceName, 
       type: resourceType, 
-      value: resourceValue, 
+      value: resourceType === 'file' ? selectedFile?.name || '' : resourceValue,
       description: resourceDescription.trim() || undefined, 
-      fileName 
+      fileName: resourceType === 'file' ? selectedFile?.name : fileName,
+      file: resourceType === 'file' ? selectedFile || undefined : undefined
     });
     onClose();
   };
@@ -85,8 +104,10 @@ const AddEditResourceModal: React.FC<AddEditResourceModalProps> = ({
   const handleFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
     if (event.target.files && event.target.files.length > 0) {
       const file = event.target.files[0];
+      console.log('File selected:', file.name, 'size:', file.size, 'type:', file.type);
       setFileName(file.name);
-      setResourceValue(`file-upload-${file.name}`); // Placeholder for file content/ID
+      setSelectedFile(file);
+      setResourceValue(file.name); // Set the file name as the value for display
     }
   };
 
@@ -121,14 +142,14 @@ const AddEditResourceModal: React.FC<AddEditResourceModalProps> = ({
                 <SelectValue placeholder="Select resource type" />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="link">Link</SelectItem>
+                <SelectItem value="url">Link</SelectItem>
                 <SelectItem value="file">File Upload</SelectItem>
                 <SelectItem value="text">Text Content</SelectItem>
               </SelectContent>
             </Select>
           </div>
 
-          {resourceType === "link" && (
+          {resourceType === "url" && (
             <div className="grid grid-cols-4 items-center gap-4">
               <Label htmlFor="resource-url" className="text-right">
                 URL *
@@ -154,14 +175,38 @@ const AddEditResourceModal: React.FC<AddEditResourceModalProps> = ({
                 File
               </Label>
               <div className="col-span-3 flex flex-col items-center justify-center px-6 pt-5 pb-6 border-2 border-slate-300 border-dashed rounded-md">
-                <Upload className="mx-auto h-12 w-12 text-slate-400" />
-                {fileName && <p className="text-sm text-slate-600 mt-2">{fileName}</p>}
-                <div className="flex text-sm text-slate-600 mt-2">
-                  <label htmlFor="file-upload" className="relative cursor-pointer bg-white rounded-md font-medium text-indigo-600 hover:text-indigo-500 focus-within:outline-none">
-                    <span>{fileName ? "Upload new file" : "Upload a file"}</span>
-                    <Input id="file-upload" name="file-upload" type="file" className="sr-only" onChange={handleFileChange} />
-                  </label>
-                </div>
+                {initialResource && initialResource.value ? (
+                  // Show FileViewer for existing files
+                  <div className="text-center">
+                    <FileText className="mx-auto h-12 w-12 text-slate-400 mb-2" />
+                    <p className="text-sm text-slate-600 mb-3">{fileName}</p>
+                    
+                    <FileViewer 
+                      fileUrl={initialResource.value}
+                      fileName={fileName}
+                      showInline={true}
+                    />
+                    
+                    <div className="mt-3">
+                      <label htmlFor="file-upload" className="relative cursor-pointer bg-white rounded-md font-medium text-slate-600 hover:text-slate-500 focus-within:outline-none">
+                        <span className="text-sm">Upload new file</span>
+                        <Input id="file-upload" name="file-upload" type="file" className="sr-only" onChange={handleFileChange} />
+                      </label>
+                    </div>
+                  </div>
+                ) : (
+                  // Show upload interface for new files
+                  <div className="text-center">
+                    <Upload className="mx-auto h-12 w-12 text-slate-400" />
+                    {fileName && <p className="text-sm text-slate-600 mt-2">{fileName}</p>}
+                    <div className="flex text-sm text-slate-600 mt-2">
+                      <label htmlFor="file-upload" className="relative cursor-pointer bg-white rounded-md font-medium text-indigo-600 hover:text-indigo-500 focus-within:outline-none">
+                        <span>{fileName ? "Upload new file" : "Upload a file"}</span>
+                        <Input id="file-upload" name="file-upload" type="file" className="sr-only" onChange={handleFileChange} />
+                      </label>
+                    </div>
+                  </div>
+                )}
               </div>
             </div>
           )}

@@ -10,10 +10,12 @@ import { toast } from "sonner";
 interface Resource {
   id: string;
   name: string;
-  type: 'link' | 'file' | 'text';
+  type: 'url' | 'file' | 'text';
   value: string; // URL, file ID/name, or text content
   description?: string; // New optional description field
   fileName?: string; // Only for type 'file'
+  thumbnail_url?: string;
+  file?: File;
 }
 
 interface ResourceCategoryCardProps {
@@ -77,7 +79,7 @@ const ResourceCategoryCard: React.FC<ResourceCategoryCardProps> = ({
 
   const getResourceIcon = (type: string) => {
     switch (type) {
-      case 'link':
+      case 'url':
         return <Link className="h-4 w-4 mr-2 text-slate-500" />;
       case 'file':
         return <FileText className="h-4 w-4 mr-2 text-slate-500" />;
@@ -149,13 +151,22 @@ const ResourceCategoryCard: React.FC<ResourceCategoryCardProps> = ({
                   <p className="font-medium">{resource.name}</p>
                   {resource.description && <p className="text-xs text-slate-500">{resource.description}</p>} {/* Display description */}
                   <p className="text-xs text-slate-400">
-                    {resource.type === 'link' && `URL: ${resource.value.substring(0, 30)}...`}
+                    {resource.type === 'url' && `URL: ${resource.value.substring(0, 30)}...`}
                     {resource.type === 'file' && `File: ${resource.fileName || resource.value}`}
                     {resource.type === 'text' && `Content: ${resource.value.substring(0, 30)}...`}
                   </p>
                 </div>
               </div>
               <div className="flex space-x-2">
+                {resource.type === 'file' && resource.value ? (
+                  <Button 
+                    variant="link" 
+                    className="text-sm font-medium text-green-600 hover:text-green-800" 
+                    onClick={() => window.open(resource.value, '_blank')}
+                  >
+                    View File
+                  </Button>
+                ) : null}
                 <Button 
                   variant="link" 
                   className="text-sm font-medium text-indigo-600 hover:text-indigo-800" 

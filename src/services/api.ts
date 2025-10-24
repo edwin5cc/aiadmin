@@ -284,7 +284,10 @@ export interface ResourceCard {
   portal_id: string;
   title: string;
   description?: string;
-  url: string;
+  type: 'url' | 'text' | 'file';
+  url?: string; // For url type
+  text_content?: string; // For text type
+  file_url?: string; // For file type
   thumbnail_url?: string;
   category_id?: string;
   display_order: number;
@@ -298,7 +301,10 @@ export interface CreateResourceRequest {
   portal_id: string;
   title: string;
   description?: string;
-  url: string;
+  type: 'url' | 'text' | 'file';
+  url?: string; // Required for url type
+  text_content?: string; // Required for text type
+  file?: File; // Required for file type (multipart)
   thumbnail_url?: string;
   category_id?: string;
   display_order?: number;
@@ -308,7 +314,10 @@ export interface CreateResourceRequest {
 export interface UpdateResourceRequest {
   title?: string;
   description?: string;
+  type?: 'url' | 'text' | 'file';
   url?: string;
+  text_content?: string;
+  file_url?: string;
   thumbnail_url?: string;
   category_id?: string;
   display_order?: number;
@@ -591,6 +600,80 @@ export const resourcesApi = {
   },
 
   /**
+   * Upload a file for use in resource cards
+   */
+  async uploadFile(file: File): Promise<{ error: boolean; message: string; file_url: string; file_id: string; file_info: any }> {
+    const token = authApi.getToken();
+    
+    if (!token) {
+      throw new ApiError('Authentication token not found', 401);
+    }
+
+    const formData = new FormData();
+    formData.append('file', file);
+
+    const url = `${API_CONFIG.baseURL}/v1/api/aiaccelerator/admin/lambda/resources/upload-file`;
+    
+    const response = await fetch(url, {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${token}`,
+        'x-project': X_PROJECT_ID,
+        // Do NOT set Content-Type - let browser set it automatically for multipart/form-data
+      },
+      body: formData,
+    });
+
+    if (!response.ok) {
+      const errorData = await response.json().catch(() => ({}));
+      throw new ApiError(
+        errorData.message || `HTTP error! status: ${response.status}`,
+        response.status,
+        errorData
+      );
+    }
+
+    return await response.json();
+  },
+
+  /**
+   * Upload file and update an existing resource card
+   */
+  async uploadFileAndUpdateResource(resourceId: string, file: File): Promise<{ error: boolean; message: string; resource: ResourceCard; file_info: any }> {
+    const token = authApi.getToken();
+    
+    if (!token) {
+      throw new ApiError('Authentication token not found', 401);
+    }
+
+    const formData = new FormData();
+    formData.append('file', file);
+
+    const url = `${API_CONFIG.baseURL}/v1/api/aiaccelerator/admin/lambda/resources/${resourceId}/upload-file`;
+    
+    const response = await fetch(url, {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${token}`,
+        'x-project': X_PROJECT_ID,
+        // Do NOT set Content-Type - let browser set it automatically for multipart/form-data
+      },
+      body: formData,
+    });
+
+    if (!response.ok) {
+      const errorData = await response.json().catch(() => ({}));
+      throw new ApiError(
+        errorData.message || `HTTP error! status: ${response.status}`,
+        response.status,
+        errorData
+      );
+    }
+
+    return await response.json();
+  },
+
+  /**
    * Create a new resource card
    */
   async createResource(data: CreateResourceRequest): Promise<{ error: boolean; message: string; resource: ResourceCard }> {
@@ -600,11 +683,114 @@ export const resourcesApi = {
       throw new ApiError('Authentication token not found', 401);
     }
 
+    console.log('createResource called with data:', data);
+    console.log('Data type:', typeof data);
+    console.log('Data keys:', Object.keys(data));
+
+    // Handle file upload with multipart/form-data
+    if (data.type === 'file' && data.file) {
+      console.log('✅ ENTERING FILE UPLOAD BRANCH');
+      console.log('Creating file resource with file:', data.file.name, 'size:', data.file.size);
+      console.log('File type:', data.file.type);
+      console.log('File lastModified:', data.file.lastModified);
+      
+      // Validate file
+      if (!data.file || data.file.size === 0) {
+        throw new ApiError('Invalid file: file is empty or missing', 400);
+      }
+      
+      // WORKAROUND: Use two-step process since backend FormData parsing is broken
+      console.log('🔄 Using two-step file upload process...');
+      
+      // Step 1: Upload the file
+      console.log('Step 1: Uploading file...');
+      
+      // Call uploadFile directly to avoid circular reference
+      const formData = new FormData();
+      formData.append('file', data.file);
+      
+      const uploadUrl = `${API_CONFIG.baseURL}/v1/api/aiaccelerator/admin/lambda/resources/upload-file`;
+      const uploadResponse = await fetch(uploadUrl, {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'x-project': X_PROJECT_ID,
+        },
+        body: formData,
+      });
+      
+      if (!uploadResponse.ok) {
+        const errorData = await uploadResponse.json().catch(() => ({}));
+        throw new ApiError(
+          errorData.message || `File upload failed! status: ${uploadResponse.status}`,
+          uploadResponse.status,
+          errorData
+        );
+      }
+      
+      const uploadResult = await uploadResponse.json();
+      console.log('File upload result:', uploadResult);
+      
+      // Step 2: Create resource with file_url
+      console.log('Step 2: Creating resource with file_url...');
+      const resourcePayload = {
+        portal_id: data.portal_id,
+        title: data.title,
+        description: data.description,
+        type: 'file',
+        file_url: uploadResult.file_url,
+        thumbnail_url: data.thumbnail_url,
+        category_id: data.category_id,
+        display_order: data.display_order,
+        is_published: data.is_published,
+      };
+      
+      console.log('Creating resource with payload:', resourcePayload);
+      
+      return apiRequest<{ error: boolean; message: string; resource: ResourceCard }>(
+        '/v1/api/aiaccelerator/admin/lambda/resources',
+        {
+          method: 'POST',
+          body: JSON.stringify(resourcePayload),
+          headers: {
+            'Authorization': `Bearer ${token}`,
+            'x-project': X_PROJECT_ID,
+          },
+        }
+      );
+    }
+
+    // Handle url and text types with JSON
+    console.log('⚠️ FALLING THROUGH TO JSON BRANCH - This should not happen for file uploads!');
+    console.log('Data type was:', data.type);
+    console.log('Data file was:', data.file);
+    
+    const payload: any = {
+      portal_id: data.portal_id,
+      title: data.title,
+      type: data.type,
+    };
+
+    if (data.description) payload.description = data.description;
+    if (data.thumbnail_url) payload.thumbnail_url = data.thumbnail_url;
+    if (data.category_id) payload.category_id = data.category_id;
+    if (data.display_order !== undefined) payload.display_order = data.display_order;
+    if (data.is_published !== undefined) payload.is_published = data.is_published;
+
+    // Add type-specific fields
+    if (data.type === 'url' && data.url) {
+      payload.url = data.url;
+    } else if (data.type === 'text' && data.text_content) {
+      payload.text_content = data.text_content;
+    }
+
+    console.log('Creating JSON resource with payload:', payload);
+
     return apiRequest<{ error: boolean; message: string; resource: ResourceCard }>(
       '/v1/api/aiaccelerator/admin/lambda/resources',
       {
         method: 'POST',
-        body: JSON.stringify(data),
+        body: JSON.stringify(payload),
         headers: {
           'Authorization': `Bearer ${token}`,
           'x-project': X_PROJECT_ID,
@@ -623,11 +809,27 @@ export const resourcesApi = {
       throw new ApiError('Authentication token not found', 401);
     }
 
+    const payload: any = {};
+
+    // Add basic fields
+    if (data.title) payload.title = data.title;
+    if (data.description) payload.description = data.description;
+    if (data.thumbnail_url) payload.thumbnail_url = data.thumbnail_url;
+    if (data.category_id) payload.category_id = data.category_id;
+    if (data.display_order !== undefined) payload.display_order = data.display_order;
+    if (data.is_published !== undefined) payload.is_published = data.is_published;
+
+    // Add type-specific fields
+    if (data.type) payload.type = data.type;
+    if (data.url !== undefined) payload.url = data.url;
+    if (data.text_content !== undefined) payload.text_content = data.text_content;
+    if (data.file_url !== undefined) payload.file_url = data.file_url;
+
     return apiRequest<{ error: boolean; message: string; resource: ResourceCard }>(
       `/v1/api/aiaccelerator/admin/lambda/resources/${id}`,
       {
         method: 'PUT',
-        body: JSON.stringify(data),
+        body: JSON.stringify(payload),
         headers: {
           'Authorization': `Bearer ${token}`,
           'x-project': X_PROJECT_ID,

@@ -20,11 +20,12 @@ import { Loader2 } from "lucide-react";
 interface Resource {
   id: string;
   name: string;
-  type: 'link' | 'file' | 'text';
+  type: 'url' | 'file' | 'text';
   value: string;
   description?: string;
   fileName?: string;
   thumbnail_url?: string;
+  file?: File;
 }
 
 interface ResourceCategory {
@@ -159,12 +160,28 @@ const ResourcesPage = () => {
           
           const category = categoriesMap.get(categoryId);
           if (category) {
+            // Determine the resource type and value based on the ResourceCard data
+            let resourceType: 'url' | 'file' | 'text' = 'url';
+            let resourceValue = '';
+            
+            if (resource.type === 'url' && resource.url) {
+              resourceType = 'url';
+              resourceValue = resource.url;
+            } else if (resource.type === 'text' && resource.text_content) {
+              resourceType = 'text';
+              resourceValue = resource.text_content;
+            } else if (resource.type === 'file' && resource.file_url) {
+              resourceType = 'file';
+              resourceValue = resource.file_url;
+            }
+            
             category.resources.push({
               id: resource.id,
               name: resource.title,
-              type: 'link',
-              value: resource.url,
+              type: resourceType,
+              value: resourceValue,
               description: resource.description,
+              thumbnail_url: resource.thumbnail_url,
             });
           }
         });
@@ -298,7 +315,10 @@ const ResourcesPage = () => {
   };
 
   const handleAddResource = async (categoryId: string, resourceData: Omit<Resource, 'id'>) => {
+    console.log('handleAddResource called with:', { categoryId, resourceData, selectedPortalId });
+    
     if (!selectedPortalId) {
+      console.error('No portal selected! selectedPortalId:', selectedPortalId);
       toast.error("Please select a portal first");
       return;
     }
@@ -307,8 +327,8 @@ const ResourcesPage = () => {
     toast.loading("Adding resource...", { id: "add-resource" });
 
     try {
-      // Validate URL format
-      if (resourceData.type === 'link' && resourceData.value) {
+      // Validate based on resource type
+      if (resourceData.type === 'url' && resourceData.value) {
         try {
           new URL(resourceData.value);
         } catch {
@@ -316,16 +336,37 @@ const ResourcesPage = () => {
           setIsCreatingResource(false);
           return;
         }
+      } else if (resourceData.type === 'text' && !resourceData.value.trim()) {
+        toast.error("❌ Please enter text content", { id: "add-resource" });
+        setIsCreatingResource(false);
+        return;
+      } else if (resourceData.type === 'file' && !resourceData.value) {
+        toast.error("❌ Please select a file to upload", { id: "add-resource" });
+        setIsCreatingResource(false);
+        return;
+      } else if (resourceData.type === 'file' && !resourceData.file) {
+        toast.error("❌ File object is missing", { id: "add-resource" });
+        setIsCreatingResource(false);
+        return;
       }
 
       const resourcePayload: any = {
         portal_id: selectedPortalId,
         title: resourceData.name,
         description: resourceData.description,
-        url: resourceData.value,
+        type: resourceData.type,
         display_order: 1,
         is_published: true,
       };
+
+      // Add type-specific fields
+      if (resourceData.type === 'url') {
+        resourcePayload.url = resourceData.value;
+      } else if (resourceData.type === 'text') {
+        resourcePayload.text_content = resourceData.value;
+      } else if (resourceData.type === 'file' && resourceData.file) {
+        resourcePayload.file = resourceData.file;
+      }
 
       // Only add category_id if it's not uncategorized
       if (categoryId !== 'uncategorized') {
@@ -338,8 +379,14 @@ const ResourcesPage = () => {
       }
 
       console.log('Creating resource with payload:', resourcePayload);
+      console.log('Resource type:', resourceData.type);
+      console.log('Selected portal ID:', selectedPortalId);
+      console.log('File object:', resourceData.file);
+      console.log('File name:', resourceData.fileName);
+      console.log('Resource data keys:', Object.keys(resourceData));
+      console.log('Resource payload keys:', Object.keys(resourcePayload));
       
-      await resourcesApi.createResource(resourcePayload);
+      const result = await resourcesApi.createResource(resourcePayload);
       
       toast.success("✅ Resource added successfully!", { 
         id: "add-resource",
@@ -378,8 +425,8 @@ const ResourcesPage = () => {
     toast.loading("Updating resource...", { id: "update-resource" });
     
     try {
-      // Validate URL format if it's a link
-      if (updatedResourceData.type === 'link' && updatedResourceData.value) {
+      // Validate based on resource type
+      if (updatedResourceData.type === 'url' && updatedResourceData.value) {
         try {
           new URL(updatedResourceData.value);
         } catch {
@@ -387,14 +434,27 @@ const ResourcesPage = () => {
           setIsUpdatingResource(false);
           return;
         }
+      } else if (updatedResourceData.type === 'text' && !updatedResourceData.value.trim()) {
+        toast.error("❌ Please enter text content", { id: "update-resource" });
+        setIsUpdatingResource(false);
+        return;
       }
 
       const updatePayload: any = {
         title: updatedResourceData.name,
         description: updatedResourceData.description,
-        url: updatedResourceData.value,
+        type: updatedResourceData.type,
         is_published: true, // Default to published
       };
+
+      // Add type-specific fields
+      if (updatedResourceData.type === 'url') {
+        updatePayload.url = updatedResourceData.value;
+      } else if (updatedResourceData.type === 'text') {
+        updatePayload.text_content = updatedResourceData.value;
+      } else if (updatedResourceData.type === 'file') {
+        updatePayload.file_url = updatedResourceData.value;
+      }
 
       // Only add category_id if it's not uncategorized
       if (categoryId !== 'uncategorized') {
