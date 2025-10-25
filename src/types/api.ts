@@ -171,6 +171,223 @@ export interface AuditLogsResponse {
   filters_applied: FiltersApplied;
 }
 
+// Course Types
+export interface Course {
+  id: string;
+  portal_id: string;
+  title: string;
+  description?: string;
+  thumbnail_url?: string;
+  estimated_duration_minutes?: number;
+  display_order: number;
+  is_published: boolean;
+  create_at: string;
+  update_at: string;
+  created_by: string;
+  lessons?: Lesson[];
+  lessons_count?: number;
+}
+
+export interface Lesson {
+  id: string;
+  course_id: string;
+  title: string;
+  description?: string;
+  video_id?: string;
+  video_url?: string;
+  video_provider?: string;
+  duration_seconds?: number;
+  thumbnail_url?: string;
+  transcript?: string;
+  lesson_number: number;
+  display_order: number;
+  is_published: boolean;
+  create_at: string;
+  update_at: string;
+  created_by: string;
+}
+
+export interface CreateCourseRequest {
+  portal_id: string;
+  title: string;
+  description?: string;
+  thumbnail_url?: string;
+  estimated_duration_minutes?: number;
+  display_order?: number;
+  is_published?: boolean;
+}
+
+export interface UpdateCourseRequest {
+  title?: string;
+  description?: string;
+  thumbnail_url?: string;
+  estimated_duration_minutes?: number;
+  display_order?: number;
+  is_published?: boolean;
+}
+
+export interface CourseListResponse {
+  error: boolean;
+  message: string;
+  courses: Course[];
+  pagination: {
+    current_page: number;
+    total_pages: number;
+    total_count: number;
+    per_page: number;
+    has_next_page: boolean;
+    has_prev_page: boolean;
+  };
+}
+
+export interface CourseResponse {
+  error: boolean;
+  message: string;
+  course: Course;
+}
+
+export interface CourseDeleteResponse {
+  error: boolean;
+  message: string;
+  deleted_lessons_count: number;
+}
+
+export interface ThumbnailUploadResponse {
+  error: boolean;
+  message: string;
+  thumbnail_url: string;
+  file_info: {
+    originalname: string;
+    mimetype: string;
+    size: number;
+  };
+}
+
+export interface ThumbnailUploadAndUpdateResponse {
+  error: boolean;
+  message: string;
+  course: Course;
+  thumbnail_info: {
+    thumbnail_url: string;
+    file_info: {
+      originalname: string;
+      mimetype: string;
+      size: number;
+    };
+  };
+}
+
+// Lesson Types
+export interface CreateLessonRequest {
+  course_id: string;
+  title: string;
+  description?: string;
+  video_id?: string;
+  video_url?: string;
+  video_provider?: string;
+  duration_seconds?: number;
+  thumbnail_url?: string;
+  transcript?: string;
+  lesson_number?: number;
+  display_order?: number;
+  is_published?: boolean;
+}
+
+export interface UpdateLessonRequest {
+  title?: string;
+  description?: string;
+  video_id?: string;
+  video_url?: string;
+  video_provider?: string;
+  duration_seconds?: number;
+  thumbnail_url?: string;
+  transcript?: string;
+  lesson_number?: number;
+  display_order?: number;
+  is_published?: boolean;
+}
+
+export interface LessonListResponse {
+  error: boolean;
+  message: string;
+  lessons: Lesson[];
+  pagination: {
+    current_page: number;
+    total_pages: number;
+    total_count: number;
+    per_page: number;
+    has_next_page: boolean;
+    has_prev_page: boolean;
+  };
+}
+
+export interface LessonResponse {
+  error: boolean;
+  message: string;
+  lesson: Lesson;
+}
+
+export interface LessonDeleteResponse {
+  error: boolean;
+  message: string;
+}
+
+export interface VideoUploadResponse {
+  error: boolean;
+  message: string;
+  video_url: string;
+  video_id: string;
+  video_provider: string;
+  file_info: {
+    originalname: string;
+    mimetype: string;
+    size: number;
+    key?: string;
+  };
+}
+
+export interface VideoUploadAndUpdateResponse {
+  error: boolean;
+  message: string;
+  lesson: Lesson;
+  video_info: {
+    video_url: string;
+    video_id: string;
+    video_provider: string;
+    file_info: {
+      originalname: string;
+      mimetype: string;
+      size: number;
+      key?: string;
+    };
+  };
+}
+
+export interface LessonThumbnailUploadResponse {
+  error: boolean;
+  message: string;
+  thumbnail_url: string;
+  file_info: {
+    originalname: string;
+    mimetype: string;
+    size: number;
+  };
+}
+
+export interface LessonThumbnailUploadAndUpdateResponse {
+  error: boolean;
+  message: string;
+  lesson: Lesson;
+  thumbnail_info: {
+    thumbnail_url: string;
+    file_info: {
+      originalname: string;
+      mimetype: string;
+      size: number;
+    };
+  };
+}
+
 // API Error Types
 export interface ApiError {
   error: boolean;

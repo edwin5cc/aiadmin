@@ -1,4 +1,26 @@
-import { ApiResponse, DashboardData, AuditLog } from '../types/api';
+import { 
+  ApiResponse, 
+  DashboardData, 
+  AuditLog,
+  Course,
+  Lesson,
+  CreateCourseRequest,
+  UpdateCourseRequest,
+  CourseListResponse,
+  CourseResponse,
+  CourseDeleteResponse,
+  ThumbnailUploadResponse,
+  ThumbnailUploadAndUpdateResponse,
+  CreateLessonRequest,
+  UpdateLessonRequest,
+  LessonListResponse,
+  LessonResponse,
+  LessonDeleteResponse,
+  VideoUploadResponse,
+  VideoUploadAndUpdateResponse,
+  LessonThumbnailUploadResponse,
+  LessonThumbnailUploadAndUpdateResponse
+} from '../types/api';
 import { config } from '../config/env';
 
 // Environment variables
@@ -862,6 +884,494 @@ export const resourcesApi = {
   },
 };
 
+// Courses API functions
+export const coursesApi = {
+  /**
+   * Create a new course
+   */
+  async createCourse(data: CreateCourseRequest): Promise<CourseResponse> {
+    const token = authApi.getToken();
+    
+    if (!token) {
+      throw new ApiError('Authentication token not found', 401);
+    }
+
+    return apiRequest<CourseResponse>(
+      '/v1/api/aiaccelerator/admin/lambda/courses',
+      {
+        method: 'POST',
+        body: JSON.stringify(data),
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'x-project': X_PROJECT_ID,
+        },
+      }
+    );
+  },
+
+  /**
+   * Get all courses with pagination and optional filtering
+   */
+  async getCourses(params?: {
+    page?: number;
+    limit?: number;
+    portal_id?: string;
+    include_lessons?: boolean;
+  }): Promise<CourseListResponse> {
+    const token = authApi.getToken();
+    
+    if (!token) {
+      throw new ApiError('Authentication token not found', 401);
+    }
+
+    const queryParams = new URLSearchParams();
+    
+    if (params?.page) queryParams.append('page', params.page.toString());
+    if (params?.limit) queryParams.append('limit', params.limit.toString());
+    if (params?.portal_id) queryParams.append('portal_id', params.portal_id);
+    if (params?.include_lessons !== undefined) queryParams.append('include_lessons', params.include_lessons.toString());
+
+    const queryString = queryParams.toString();
+    const url = `/v1/api/aiaccelerator/admin/lambda/courses${queryString ? `?${queryString}` : ''}`;
+
+    return apiRequest<CourseListResponse>(
+      url,
+      {
+        method: 'GET',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'x-project': X_PROJECT_ID,
+        },
+      }
+    );
+  },
+
+  /**
+   * Get a specific course by ID
+   */
+  async getCourseById(id: string, include_lessons?: boolean): Promise<CourseResponse> {
+    const token = authApi.getToken();
+    
+    if (!token) {
+      throw new ApiError('Authentication token not found', 401);
+    }
+
+    const queryParams = new URLSearchParams();
+    if (include_lessons !== undefined) {
+      queryParams.append('include_lessons', include_lessons.toString());
+    }
+
+    const queryString = queryParams.toString();
+    const url = `/v1/api/aiaccelerator/admin/lambda/courses/${id}${queryString ? `?${queryString}` : ''}`;
+
+    return apiRequest<CourseResponse>(
+      url,
+      {
+        method: 'GET',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'x-project': X_PROJECT_ID,
+        },
+      }
+    );
+  },
+
+  /**
+   * Update an existing course
+   */
+  async updateCourse(id: string, data: UpdateCourseRequest): Promise<CourseResponse> {
+    const token = authApi.getToken();
+    
+    if (!token) {
+      throw new ApiError('Authentication token not found', 401);
+    }
+
+    return apiRequest<CourseResponse>(
+      `/v1/api/aiaccelerator/admin/lambda/courses/${id}`,
+      {
+        method: 'PUT',
+        body: JSON.stringify(data),
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'x-project': X_PROJECT_ID,
+        },
+      }
+    );
+  },
+
+  /**
+   * Delete a course and all its associated lessons
+   */
+  async deleteCourse(id: string): Promise<CourseDeleteResponse> {
+    const token = authApi.getToken();
+    
+    if (!token) {
+      throw new ApiError('Authentication token not found', 401);
+    }
+
+    return apiRequest<CourseDeleteResponse>(
+      `/v1/api/aiaccelerator/admin/lambda/courses/${id}`,
+      {
+        method: 'DELETE',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'x-project': X_PROJECT_ID,
+        },
+      }
+    );
+  },
+
+  /**
+   * Upload a course thumbnail
+   */
+  async uploadThumbnail(file: File): Promise<ThumbnailUploadResponse> {
+    const token = authApi.getToken();
+    
+    if (!token) {
+      throw new ApiError('Authentication token not found', 401);
+    }
+
+    const formData = new FormData();
+    formData.append('thumbnail', file);
+
+    const url = `${API_CONFIG.baseURL}/v1/api/aiaccelerator/admin/lambda/courses/upload-thumbnail`;
+    
+    const response = await fetch(url, {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${token}`,
+        'x-project': X_PROJECT_ID,
+        // Do NOT set Content-Type - let browser set it automatically for multipart/form-data
+      },
+      body: formData,
+    });
+
+    if (!response.ok) {
+      const errorData = await response.json().catch(() => ({}));
+      throw new ApiError(
+        errorData.message || `HTTP error! status: ${response.status}`,
+        response.status,
+        errorData
+      );
+    }
+
+    return await response.json();
+  },
+
+  /**
+   * Upload thumbnail and update course
+   */
+  async uploadThumbnailAndUpdateCourse(courseId: string, file: File): Promise<ThumbnailUploadAndUpdateResponse> {
+    const token = authApi.getToken();
+    
+    if (!token) {
+      throw new ApiError('Authentication token not found', 401);
+    }
+
+    const formData = new FormData();
+    formData.append('thumbnail', file);
+
+    const url = `${API_CONFIG.baseURL}/v1/api/aiaccelerator/admin/lambda/courses/${courseId}/upload-thumbnail`;
+    
+    const response = await fetch(url, {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${token}`,
+        'x-project': X_PROJECT_ID,
+        // Do NOT set Content-Type - let browser set it automatically for multipart/form-data
+      },
+      body: formData,
+    });
+
+    if (!response.ok) {
+      const errorData = await response.json().catch(() => ({}));
+      throw new ApiError(
+        errorData.message || `HTTP error! status: ${response.status}`,
+        response.status,
+        errorData
+      );
+    }
+
+    return await response.json();
+  },
+};
+
+// Lessons API functions
+export const lessonsApi = {
+  /**
+   * Create a new lesson
+   */
+  async createLesson(data: CreateLessonRequest): Promise<LessonResponse> {
+    const token = authApi.getToken();
+    
+    if (!token) {
+      throw new ApiError('Authentication token not found', 401);
+    }
+
+    return apiRequest<LessonResponse>(
+      '/v1/api/aiaccelerator/admin/lambda/lessons',
+      {
+        method: 'POST',
+        body: JSON.stringify(data),
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'x-project': X_PROJECT_ID,
+        },
+      }
+    );
+  },
+
+  /**
+   * Get all lessons with pagination and optional filtering
+   */
+  async getLessons(params?: {
+    page?: number;
+    limit?: number;
+    course_id?: string;
+  }): Promise<LessonListResponse> {
+    const token = authApi.getToken();
+    
+    if (!token) {
+      throw new ApiError('Authentication token not found', 401);
+    }
+
+    const queryParams = new URLSearchParams();
+    
+    if (params?.page) queryParams.append('page', params.page.toString());
+    if (params?.limit) queryParams.append('limit', params.limit.toString());
+    if (params?.course_id) queryParams.append('course_id', params.course_id);
+
+    const queryString = queryParams.toString();
+    const url = `/v1/api/aiaccelerator/admin/lambda/lessons${queryString ? `?${queryString}` : ''}`;
+
+    return apiRequest<LessonListResponse>(
+      url,
+      {
+        method: 'GET',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'x-project': X_PROJECT_ID,
+        },
+      }
+    );
+  },
+
+  /**
+   * Get a specific lesson by ID
+   */
+  async getLessonById(id: string): Promise<LessonResponse> {
+    const token = authApi.getToken();
+    
+    if (!token) {
+      throw new ApiError('Authentication token not found', 401);
+    }
+
+    return apiRequest<LessonResponse>(
+      `/v1/api/aiaccelerator/admin/lambda/lessons/${id}`,
+      {
+        method: 'GET',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'x-project': X_PROJECT_ID,
+        },
+      }
+    );
+  },
+
+  /**
+   * Update an existing lesson
+   */
+  async updateLesson(id: string, data: UpdateLessonRequest): Promise<LessonResponse> {
+    const token = authApi.getToken();
+    
+    if (!token) {
+      throw new ApiError('Authentication token not found', 401);
+    }
+
+    return apiRequest<LessonResponse>(
+      `/v1/api/aiaccelerator/admin/lambda/lessons/${id}`,
+      {
+        method: 'PUT',
+        body: JSON.stringify(data),
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'x-project': X_PROJECT_ID,
+        },
+      }
+    );
+  },
+
+  /**
+   * Delete a lesson
+   */
+  async deleteLesson(id: string): Promise<LessonDeleteResponse> {
+    const token = authApi.getToken();
+    
+    if (!token) {
+      throw new ApiError('Authentication token not found', 401);
+    }
+
+    return apiRequest<LessonDeleteResponse>(
+      `/v1/api/aiaccelerator/admin/lambda/lessons/${id}`,
+      {
+        method: 'DELETE',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'x-project': X_PROJECT_ID,
+        },
+      }
+    );
+  },
+
+  /**
+   * Upload a lesson video
+   */
+  async uploadVideo(file: File): Promise<VideoUploadResponse> {
+    const token = authApi.getToken();
+    
+    if (!token) {
+      throw new ApiError('Authentication token not found', 401);
+    }
+
+    const formData = new FormData();
+    formData.append('video', file);
+
+    const url = `${API_CONFIG.baseURL}/v1/api/aiaccelerator/admin/lambda/lessons/upload-video`;
+    
+    const response = await fetch(url, {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${token}`,
+        'x-project': X_PROJECT_ID,
+        // Do NOT set Content-Type - let browser set it automatically for multipart/form-data
+      },
+      body: formData,
+    });
+
+    if (!response.ok) {
+      const errorData = await response.json().catch(() => ({}));
+      throw new ApiError(
+        errorData.message || `HTTP error! status: ${response.status}`,
+        response.status,
+        errorData
+      );
+    }
+
+    return await response.json();
+  },
+
+  /**
+   * Upload video and update lesson
+   */
+  async uploadVideoAndUpdateLesson(lessonId: string, file: File): Promise<VideoUploadAndUpdateResponse> {
+    const token = authApi.getToken();
+    
+    if (!token) {
+      throw new ApiError('Authentication token not found', 401);
+    }
+
+    const formData = new FormData();
+    formData.append('video', file);
+
+    const url = `${API_CONFIG.baseURL}/v1/api/aiaccelerator/admin/lambda/lessons/${lessonId}/upload-video`;
+    
+    const response = await fetch(url, {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${token}`,
+        'x-project': X_PROJECT_ID,
+        // Do NOT set Content-Type - let browser set it automatically for multipart/form-data
+      },
+      body: formData,
+    });
+
+    if (!response.ok) {
+      const errorData = await response.json().catch(() => ({}));
+      throw new ApiError(
+        errorData.message || `HTTP error! status: ${response.status}`,
+        response.status,
+        errorData
+      );
+    }
+
+    return await response.json();
+  },
+
+  /**
+   * Upload a lesson thumbnail
+   */
+  async uploadThumbnail(file: File): Promise<LessonThumbnailUploadResponse> {
+    const token = authApi.getToken();
+    
+    if (!token) {
+      throw new ApiError('Authentication token not found', 401);
+    }
+
+    const formData = new FormData();
+    formData.append('thumbnail', file);
+
+    const url = `${API_CONFIG.baseURL}/v1/api/aiaccelerator/admin/lambda/lessons/upload-thumbnail`;
+    
+    const response = await fetch(url, {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${token}`,
+        'x-project': X_PROJECT_ID,
+        // Do NOT set Content-Type - let browser set it automatically for multipart/form-data
+      },
+      body: formData,
+    });
+
+    if (!response.ok) {
+      const errorData = await response.json().catch(() => ({}));
+      throw new ApiError(
+        errorData.message || `HTTP error! status: ${response.status}`,
+        response.status,
+        errorData
+      );
+    }
+
+    return await response.json();
+  },
+
+  /**
+   * Upload thumbnail and update lesson
+   */
+  async uploadThumbnailAndUpdateLesson(lessonId: string, file: File): Promise<LessonThumbnailUploadAndUpdateResponse> {
+    const token = authApi.getToken();
+    
+    if (!token) {
+      throw new ApiError('Authentication token not found', 401);
+    }
+
+    const formData = new FormData();
+    formData.append('thumbnail', file);
+
+    const url = `${API_CONFIG.baseURL}/v1/api/aiaccelerator/admin/lambda/lessons/${lessonId}/upload-thumbnail`;
+    
+    const response = await fetch(url, {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${token}`,
+        'x-project': X_PROJECT_ID,
+        // Do NOT set Content-Type - let browser set it automatically for multipart/form-data
+      },
+      body: formData,
+    });
+
+    if (!response.ok) {
+      const errorData = await response.json().catch(() => ({}));
+      throw new ApiError(
+        errorData.message || `HTTP error! status: ${response.status}`,
+        response.status,
+        errorData
+      );
+    }
+
+    return await response.json();
+  },
+};
+
 // API client with authentication
 export const apiClient = {
   ...dashboardApi,
@@ -870,6 +1380,8 @@ export const apiClient = {
   ...portalsApi,
   ...categoriesApi,
   ...resourcesApi,
+  ...coursesApi,
+  ...lessonsApi,
   
   /**
    * Make authenticated request
