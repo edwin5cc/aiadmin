@@ -19,7 +19,23 @@ import {
   VideoUploadResponse,
   VideoUploadAndUpdateResponse,
   LessonThumbnailUploadResponse,
-  LessonThumbnailUploadAndUpdateResponse
+  LessonThumbnailUploadAndUpdateResponse,
+  AISettings,
+  UpdateAISettingsRequest,
+  AISettingsResponse,
+  APIKey,
+  CreateAPIKeyRequest,
+  UpdateAPIKeyRequest,
+  APIKeysListResponse,
+  APIKeyResponse,
+  APIKeyDeleteResponse,
+  Chatbot,
+  CreateChatbotRequest,
+  UpdateChatbotRequest,
+  ChatbotsListResponse,
+  ChatbotResponse,
+  ChatbotDeleteResponse,
+  ChatbotIconUploadResponse
 } from '../types/api';
 import { config } from '../config/env';
 
@@ -1372,6 +1388,384 @@ export const lessonsApi = {
   },
 };
 
+// AI Settings API functions
+export const aiSettingsApi = {
+  /**
+   * Get AI settings for a specific portal
+   */
+  async getAISettings(portalSlug: 'founder' | 'business-owner'): Promise<AISettingsResponse> {
+    const token = authApi.getToken();
+    
+    if (!token) {
+      throw new ApiError('Authentication token not found', 401);
+    }
+
+    return apiRequest<AISettingsResponse>(
+      `/v1/api/aiaccelerator/admin/lambda/ai_settings/${portalSlug}`,
+      {
+        method: 'GET',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'x-project': X_PROJECT_ID,
+        },
+      }
+    );
+  },
+
+  /**
+   * Update AI settings for a specific portal
+   */
+  async updateAISettings(portalSlug: 'founder' | 'business-owner', data: UpdateAISettingsRequest): Promise<AISettingsResponse> {
+    const token = authApi.getToken();
+    
+    if (!token) {
+      throw new ApiError('Authentication token not found', 401);
+    }
+
+    return apiRequest<AISettingsResponse>(
+      `/v1/api/aiaccelerator/admin/lambda/ai_settings/${portalSlug}`,
+      {
+        method: 'PUT',
+        body: JSON.stringify(data),
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'x-project': X_PROJECT_ID,
+        },
+      }
+    );
+  },
+};
+
+// API Keys API functions
+export const apiKeysApi = {
+  /**
+   * Get all API keys
+   */
+  async getAPIKeys(): Promise<APIKeysListResponse> {
+    const token = authApi.getToken();
+    
+    if (!token) {
+      throw new ApiError('Authentication token not found', 401);
+    }
+
+    return apiRequest<APIKeysListResponse>(
+      '/v1/api/aiaccelerator/admin/lambda/api_keys',
+      {
+        method: 'GET',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'x-project': X_PROJECT_ID,
+        },
+      }
+    );
+  },
+
+  /**
+   * Get API key by provider
+   */
+  async getAPIKeyByProvider(provider: 'openai' | 'gemini'): Promise<APIKeyResponse> {
+    const token = authApi.getToken();
+    
+    if (!token) {
+      throw new ApiError('Authentication token not found', 401);
+    }
+
+    return apiRequest<APIKeyResponse>(
+      `/v1/api/aiaccelerator/admin/lambda/api_keys/provider/${provider}`,
+      {
+        method: 'GET',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'x-project': X_PROJECT_ID,
+        },
+      }
+    );
+  },
+
+  /**
+   * Create a new API key
+   */
+  async createAPIKey(data: CreateAPIKeyRequest): Promise<APIKeyResponse> {
+    const token = authApi.getToken();
+    
+    if (!token) {
+      throw new ApiError('Authentication token not found', 401);
+    }
+
+    return apiRequest<APIKeyResponse>(
+      '/v1/api/aiaccelerator/admin/lambda/api_keys',
+      {
+        method: 'POST',
+        body: JSON.stringify(data),
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'x-project': X_PROJECT_ID,
+        },
+      }
+    );
+  },
+
+  /**
+   * Update an existing API key by provider
+   */
+  async updateAPIKey(provider: 'openai' | 'gemini', data: UpdateAPIKeyRequest): Promise<APIKeyResponse> {
+    const token = authApi.getToken();
+    
+    if (!token) {
+      throw new ApiError('Authentication token not found', 401);
+    }
+
+    return apiRequest<APIKeyResponse>(
+      `/v1/api/aiaccelerator/admin/lambda/api_keys/provider/${provider}`,
+      {
+        method: 'PUT',
+        body: JSON.stringify(data),
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'x-project': X_PROJECT_ID,
+        },
+      }
+    );
+  },
+
+  /**
+   * Delete an API key by provider
+   */
+  async deleteAPIKey(provider: 'openai' | 'gemini'): Promise<APIKeyDeleteResponse> {
+    const token = authApi.getToken();
+    
+    if (!token) {
+      throw new ApiError('Authentication token not found', 401);
+    }
+
+    return apiRequest<APIKeyDeleteResponse>(
+      `/v1/api/aiaccelerator/admin/lambda/api_keys/provider/${provider}`,
+      {
+        method: 'DELETE',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'x-project': X_PROJECT_ID,
+        },
+      }
+    );
+  },
+
+  /**
+   * Get active API key by provider
+   */
+  async getActiveAPIKey(provider: 'openai' | 'gemini'): Promise<APIKeyResponse> {
+    const token = authApi.getToken();
+    
+    if (!token) {
+      throw new ApiError('Authentication token not found', 401);
+    }
+
+    return apiRequest<APIKeyResponse>(
+      `/v1/api/aiaccelerator/admin/lambda/api_keys/provider/${provider}/active`,
+      {
+        method: 'GET',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'x-project': X_PROJECT_ID,
+        },
+      }
+    );
+  },
+};
+
+// Chatbots API functions
+export const chatbotsApi = {
+  /**
+   * Get all chatbots with optional filtering
+   */
+  async getChatbots(params?: {
+    portal_id?: string;
+    is_active?: boolean;
+  }): Promise<ChatbotsListResponse> {
+    const token = authApi.getToken();
+    
+    if (!token) {
+      throw new ApiError('Authentication token not found', 401);
+    }
+
+    const queryParams = new URLSearchParams();
+    if (params?.portal_id) queryParams.append('portal_id', params.portal_id);
+    if (params?.is_active !== undefined) queryParams.append('is_active', params.is_active.toString());
+
+    const queryString = queryParams.toString();
+    const url = `/v1/api/aiaccelerator/admin/lambda/chatbots${queryString ? `?${queryString}` : ''}`;
+
+    return apiRequest<ChatbotsListResponse>(url, {
+      method: 'GET',
+      headers: {
+        'Authorization': `Bearer ${token}`,
+        'x-project': X_PROJECT_ID,
+      },
+    });
+  },
+
+  /**
+   * Get chatbots for a specific portal (recommended)
+   */
+  async getChatbotsByPortal(portalId: string, isActive?: boolean): Promise<ChatbotsListResponse> {
+    const token = authApi.getToken();
+    
+    if (!token) {
+      throw new ApiError('Authentication token not found', 401);
+    }
+
+    const queryParams = new URLSearchParams();
+    if (isActive !== undefined) queryParams.append('is_active', isActive.toString());
+
+    const queryString = queryParams.toString();
+    const url = `/v1/api/aiaccelerator/admin/lambda/portals/${portalId}/chatbots${queryString ? `?${queryString}` : ''}`;
+
+    console.log('📡 Calling getChatbotsByPortal with URL:', url);
+    
+    return apiRequest<ChatbotsListResponse>(url, {
+      method: 'GET',
+      headers: {
+        'Authorization': `Bearer ${token}`,
+        'x-project': X_PROJECT_ID,
+      },
+    });
+  },
+
+  /**
+   * Get a single chatbot by ID
+   */
+  async getChatbotById(id: string): Promise<ChatbotResponse> {
+    const token = authApi.getToken();
+    
+    if (!token) {
+      throw new ApiError('Authentication token not found', 401);
+    }
+
+    return apiRequest<ChatbotResponse>(
+      `/v1/api/aiaccelerator/admin/lambda/chatbots/${id}`,
+      {
+        method: 'GET',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'x-project': X_PROJECT_ID,
+        },
+      }
+    );
+  },
+
+  /**
+   * Create a new chatbot
+   */
+  async createChatbot(data: CreateChatbotRequest): Promise<ChatbotResponse> {
+    const token = authApi.getToken();
+    
+    if (!token) {
+      throw new ApiError('Authentication token not found', 401);
+    }
+
+    // Auto-generate slug from name if not provided
+    if (!data.slug && data.name) {
+      data.slug = data.name
+        .toLowerCase()
+        .replace(/[^a-z0-9]+/g, '-')
+        .replace(/^-+|-+$/g, '');
+    }
+
+    return apiRequest<ChatbotResponse>(
+      '/v1/api/aiaccelerator/admin/lambda/chatbots',
+      {
+        method: 'POST',
+        body: JSON.stringify(data),
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'x-project': X_PROJECT_ID,
+        },
+      }
+    );
+  },
+
+  /**
+   * Update an existing chatbot
+   */
+  async updateChatbot(id: string, data: UpdateChatbotRequest): Promise<ChatbotResponse> {
+    const token = authApi.getToken();
+    
+    if (!token) {
+      throw new ApiError('Authentication token not found', 401);
+    }
+
+    return apiRequest<ChatbotResponse>(
+      `/v1/api/aiaccelerator/admin/lambda/chatbots/${id}`,
+      {
+        method: 'PUT',
+        body: JSON.stringify(data),
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'x-project': X_PROJECT_ID,
+        },
+      }
+    );
+  },
+
+  /**
+   * Delete a chatbot
+   */
+  async deleteChatbot(id: string): Promise<ChatbotDeleteResponse> {
+    const token = authApi.getToken();
+    
+    if (!token) {
+      throw new ApiError('Authentication token not found', 401);
+    }
+
+    return apiRequest<ChatbotDeleteResponse>(
+      `/v1/api/aiaccelerator/admin/lambda/chatbots/${id}`,
+      {
+        method: 'DELETE',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'x-project': X_PROJECT_ID,
+        },
+      }
+    );
+  },
+
+  /**
+   * Upload chatbot icon
+   */
+  async uploadIcon(id: string, file: File): Promise<ChatbotIconUploadResponse> {
+    const token = authApi.getToken();
+    
+    if (!token) {
+      throw new ApiError('Authentication token not found', 401);
+    }
+
+    const formData = new FormData();
+    formData.append('icon', file);
+
+    const url = `${API_CONFIG.baseURL}/v1/api/aiaccelerator/admin/lambda/chatbots/${id}/icon`;
+    
+    const response = await fetch(url, {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${token}`,
+        'x-project': X_PROJECT_ID,
+      },
+      body: formData,
+    });
+
+    if (!response.ok) {
+      const errorData = await response.json().catch(() => ({}));
+      throw new ApiError(
+        errorData.message || `HTTP error! status: ${response.status}`,
+        response.status,
+        errorData
+      );
+    }
+
+    return await response.json();
+  },
+};
+
 // API client with authentication
 export const apiClient = {
   ...dashboardApi,
@@ -1382,6 +1776,9 @@ export const apiClient = {
   ...resourcesApi,
   ...coursesApi,
   ...lessonsApi,
+  ...aiSettingsApi,
+  ...apiKeysApi,
+  ...chatbotsApi,
   
   /**
    * Make authenticated request

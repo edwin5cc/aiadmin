@@ -16,6 +16,7 @@ import {
   AccordionTrigger,
 } from "@/components/ui/accordion";
 import AddEditLessonModal from '@/components/AddEditLessonModal';
+import AddEditCourseModal from '@/components/AddEditCourseModal';
 import { toast } from "sonner";
 import { Trash2, Loader2 } from 'lucide-react';
 import { coursesApi, lessonsApi, portalsApi, Portal } from '@/services/api';
@@ -30,6 +31,9 @@ const CoursesPage = () => {
   const [isCreatingCourse, setIsCreatingCourse] = useState(false);
   const [isDeletingCourse, setIsDeletingCourse] = useState<string | null>(null);
   const [isUpdatingCourse, setIsUpdatingCourse] = useState<string | null>(null);
+  
+  const [isCourseModalOpen, setIsCourseModalOpen] = useState(false);
+  const [editingCourse, setEditingCourse] = useState<Course | undefined>(undefined);
   
   const [isLessonModalOpen, setIsLessonModalOpen] = useState(false);
   const [currentEditingLesson, setCurrentEditingLesson] = useState<Lesson | undefined>(undefined);
@@ -102,32 +106,71 @@ const CoursesPage = () => {
     }
   };
 
-  const handleCreateCourse = async () => {
+  const handleOpenCreateCourseModal = () => {
+    if (!selectedPortalId) {
+      toast.error('Please select a portal first');
+      return;
+    }
+    setEditingCourse(undefined);
+    setIsCourseModalOpen(true);
+  };
+
+  const handleCloseCourseModal = () => {
+    setIsCourseModalOpen(false);
+    setEditingCourse(undefined);
+  };
+
+  const handleSaveCourse = async (courseData: any) => {
     if (!selectedPortalId) {
       toast.error('Please select a portal first');
       return;
     }
 
-    setIsCreatingCourse(true);
+    // Set the correct loading state based on whether we're creating or updating
+    if (editingCourse) {
+      setIsUpdatingCourse(editingCourse.id);
+    } else {
+      setIsCreatingCourse(true);
+    }
+
     try {
-      const response = await coursesApi.createCourse({
-        portal_id: selectedPortalId,
-        title: 'New Course',
-        description: 'Course description',
-        display_order: courses.length + 1,
-        is_published: false
-      });
-      
-      if (!response.error) {
-        toast.success('Course created successfully!');
-        loadCourses(); // Reload courses
+      if (editingCourse) {
+        // Update existing course
+        const response = await coursesApi.updateCourse(editingCourse.id, courseData);
+        if (!response.error) {
+          toast.success('Course updated successfully!');
+          loadCourses();
+        }
+      } else {
+        // Create new course
+        const response = await coursesApi.createCourse({
+          portal_id: selectedPortalId,
+          ...courseData,
+          display_order: courseData.display_order || courses.length + 1,
+        });
+        
+        if (!response.error) {
+          toast.success('Course created successfully!');
+          loadCourses();
+        }
       }
     } catch (error) {
-      console.error('Error creating course:', error);
-      toast.error('Failed to create course');
+      console.error('Error saving course:', error);
+      toast.error(editingCourse ? 'Failed to update course' : 'Failed to create course');
     } finally {
-      setIsCreatingCourse(false);
+      // Reset the correct loading state
+      if (editingCourse) {
+        setIsUpdatingCourse(null);
+      } else {
+        setIsCreatingCourse(false);
+      }
+      handleCloseCourseModal();
     }
+  };
+
+  const handleOpenEditCourseModal = (course: Course) => {
+    setEditingCourse(course);
+    setIsCourseModalOpen(true);
   };
 
   const handleDeleteCourse = async (courseId: string) => {
@@ -146,7 +189,7 @@ const CoursesPage = () => {
     }
   };
 
-  const handleUpdateCourseStatus = async (courseId: string, isPublished: boolean) => {
+  const handleToggleCourseStatus = async (courseId: string, isPublished: boolean) => {
     setIsUpdatingCourse(courseId);
     try {
       const response = await coursesApi.updateCourse(courseId, {
@@ -190,21 +233,46 @@ const CoursesPage = () => {
       // Editing existing lesson
       setIsUpdatingLesson(true);
       try {
-        const response = await lessonsApi.updateLesson(lessonData.id, {
-          title: lessonData.title,
-          description: lessonData.description,
-          video_url: lessonData.video_url,
-          video_provider: lessonData.video_provider || 's3',
-          duration_seconds: lessonData.duration_seconds,
-          transcript: lessonData.transcript,
-          lesson_number: lessonData.lesson_number,
-          display_order: lessonData.display_order,
-          is_published: lessonData.is_published
-        });
-        
-        if (!response.error) {
-          toast.success(`Lesson "${lessonData.title}" updated successfully!`);
-          loadCourses(); // Reload courses to get updated lessons
+        // Check if a file was selected for upload
+        if (lessonData.file) {
+          // Upload video and update lesson in one operation (this endpoint updates the lesson automatically)
+          const uploadResponse = await lessonsApi.uploadVideoAndUpdateLesson(lessonData.id, lessonData.file);
+          if (!uploadResponse.error) {
+            // The video is now uploaded and lesson has the video_url updated
+            // Now update the other lesson fields
+            const response = await lessonsApi.updateLesson(lessonData.id, {
+              title: lessonData.title,
+              description: lessonData.description,
+              duration_seconds: lessonData.duration_seconds,
+              transcript: lessonData.transcript,
+              lesson_number: lessonData.lesson_number,
+              display_order: lessonData.display_order,
+              is_published: lessonData.is_published
+            });
+            
+            if (!response.error) {
+              toast.success(`Lesson "${lessonData.title}" updated successfully with video!`);
+              loadCourses();
+            }
+          }
+        } else {
+          // No file upload, just update lesson metadata
+          const response = await lessonsApi.updateLesson(lessonData.id, {
+            title: lessonData.title,
+            description: lessonData.description,
+            video_url: lessonData.video_url,
+            video_provider: lessonData.video_provider || 's3',
+            duration_seconds: lessonData.duration_seconds,
+            transcript: lessonData.transcript,
+            lesson_number: lessonData.lesson_number,
+            display_order: lessonData.display_order,
+            is_published: lessonData.is_published
+          });
+          
+          if (!response.error) {
+            toast.success(`Lesson "${lessonData.title}" updated successfully!`);
+            loadCourses();
+          }
         }
       } catch (error) {
         console.error('Error updating lesson:', error);
@@ -217,12 +285,25 @@ const CoursesPage = () => {
       // Adding new lesson
       setIsCreatingLesson(true);
       try {
+        let videoUrl = lessonData.video_url;
+        let videoProvider = lessonData.video_provider || 's3';
+
+        // If a file was selected, upload it first
+        if (lessonData.file) {
+          const uploadResponse = await lessonsApi.uploadVideo(lessonData.file);
+          if (!uploadResponse.error) {
+            videoUrl = uploadResponse.video_url;
+            videoProvider = uploadResponse.video_provider;
+          }
+        }
+
+        // Create the lesson with video info
         const response = await lessonsApi.createLesson({
           course_id: currentCourseIdForLesson,
           title: lessonData.title,
           description: lessonData.description,
-          video_url: lessonData.video_url,
-          video_provider: lessonData.video_provider || 's3',
+          video_url: videoUrl,
+          video_provider: videoProvider,
           duration_seconds: lessonData.duration_seconds,
           transcript: lessonData.transcript,
           lesson_number: lessonData.lesson_number || 1,
@@ -232,7 +313,7 @@ const CoursesPage = () => {
         
         if (!response.error) {
           toast.success(`New lesson "${lessonData.title}" added successfully!`);
-          loadCourses(); // Reload courses to get new lesson
+          loadCourses();
         }
       } catch (error) {
         console.error('Error creating lesson:', error);
@@ -265,18 +346,11 @@ const CoursesPage = () => {
       <div className="flex items-center justify-between mb-6">
         <h2 className="text-3xl font-bold">Courses & Lessons</h2>
         <Button 
-          onClick={handleCreateCourse}
+          onClick={handleOpenCreateCourseModal}
           disabled={isCreatingCourse || !selectedPortalId}
           className="bg-indigo-600 text-white font-semibold hover:bg-indigo-700"
         >
-          {isCreatingCourse ? (
-            <>
-              <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-              Creating...
-            </>
-          ) : (
-            'Add New Course'
-          )}
+          Add New Course
         </Button>
       </div>
 
@@ -330,7 +404,16 @@ const CoursesPage = () => {
                       variant="secondary" 
                       size="sm" 
                       className="text-sm bg-slate-200 text-slate-700 font-semibold hover:bg-slate-300"
-                      onClick={() => handleUpdateCourseStatus(course.id, !course.is_published)}
+                      onClick={() => handleOpenEditCourseModal(course)}
+                      disabled={isUpdatingCourse === course.id}
+                    >
+                      Edit Course
+                    </Button>
+                    <Button 
+                      variant="secondary" 
+                      size="sm" 
+                      className="text-sm bg-slate-200 text-slate-700 font-semibold hover:bg-slate-300"
+                      onClick={() => handleToggleCourseStatus(course.id, !course.is_published)}
                       disabled={isUpdatingCourse === course.id}
                     >
                       {isUpdatingCourse === course.id ? (
@@ -403,6 +486,14 @@ const CoursesPage = () => {
           </Accordion>
         </div>
       )}
+
+      <AddEditCourseModal
+        isOpen={isCourseModalOpen}
+        onClose={handleCloseCourseModal}
+        onSave={handleSaveCourse}
+        initialCourse={editingCourse}
+        isLoading={isCreatingCourse || (editingCourse && isUpdatingCourse === editingCourse.id)}
+      />
 
       <AddEditLessonModal
         isOpen={isLessonModalOpen}

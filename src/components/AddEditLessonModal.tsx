@@ -20,7 +20,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { Upload, Loader2 } from 'lucide-react';
+import { Upload, Loader2, Eye } from 'lucide-react';
 import { Lesson } from '@/types/api';
 
 interface AddEditLessonModalProps {
@@ -83,6 +83,12 @@ const AddEditLessonModal: React.FC<AddEditLessonModalProps> = ({
       setSelectedFile(file);
       // Set video URL to file name for now - will be updated after upload
       setVideoUrl(file.name);
+    }
+  };
+
+  const handleViewVideo = (url: string) => {
+    if (url) {
+      window.open(url, '_blank');
     }
   };
 
@@ -165,13 +171,26 @@ const AddEditLessonModal: React.FC<AddEditLessonModalProps> = ({
             <Label htmlFor="video-url" className="text-right">
               Video URL
             </Label>
-            <Input
-              id="video-url"
-              value={videoUrl}
-              onChange={(e) => setVideoUrl(e.target.value)}
-              className="col-span-3"
-              placeholder="https://example.com/video.mp4"
-            />
+            <div className="col-span-3 flex gap-2">
+              <Input
+                id="video-url"
+                value={videoUrl}
+                onChange={(e) => setVideoUrl(e.target.value)}
+                className="flex-1"
+                placeholder="https://example.com/video.mp4"
+              />
+              {videoUrl && (
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="icon"
+                  onClick={() => handleViewVideo(videoUrl)}
+                  title="View Video"
+                >
+                  <Eye className="h-4 w-4" />
+                </Button>
+              )}
+            </div>
           </div>
 
           <div className="grid grid-cols-4 items-start gap-4">
@@ -181,6 +200,24 @@ const AddEditLessonModal: React.FC<AddEditLessonModalProps> = ({
             <div className="col-span-3 flex flex-col items-center justify-center px-6 pt-5 pb-6 border-2 border-slate-300 border-dashed rounded-md">
               <Upload className="mx-auto h-12 w-12 text-slate-400" />
               {selectedFile && <p className="text-sm text-slate-600 mt-2">{selectedFile.name}</p>}
+              {initialLesson?.video_url && !selectedFile && (
+                <div className="mt-2 text-center">
+                  <p className="text-sm text-slate-600 mb-2">Current video:</p>
+                  <div className="flex items-center gap-2">
+                    <p className="text-xs text-slate-500 truncate max-w-[200px]">{initialLesson.video_url}</p>
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => handleViewVideo(initialLesson.video_url || '')}
+                      className="h-6 px-2 text-xs"
+                    >
+                      <Eye className="h-3 w-3 mr-1" />
+                      View
+                    </Button>
+                  </div>
+                </div>
+              )}
               <div className="flex text-sm text-slate-600 mt-2">
                 <label htmlFor="file-upload" className="relative cursor-pointer bg-white rounded-md font-medium text-indigo-600 hover:text-indigo-500 focus-within:outline-none">
                   <span>{selectedFile ? "Upload a new file" : "Upload a file"}</span>

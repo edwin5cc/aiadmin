@@ -394,3 +394,142 @@ export interface ApiError {
   message: string;
   status?: number;
 }
+
+// AI Settings Types
+export interface ProviderSettings {
+  ai_model: string;
+  temperature: number;
+  max_tokens: number;
+  allow_file_upload: boolean;
+  allowed_file_types: string[];
+  max_file_size_mb: number;
+}
+
+export interface AISettings {
+  portal_slug: string;
+  provider_to_use: 'openai' | 'gemini';
+  openai: ProviderSettings;
+  gemini: ProviderSettings;
+  is_active: boolean;
+  updated_at?: string;
+  updated_by?: string;
+}
+
+export interface UpdateAISettingsRequest {
+  provider_to_use?: 'openai' | 'gemini';
+  openai?: Partial<ProviderSettings>;
+  gemini?: Partial<ProviderSettings>;
+  is_active?: boolean;
+}
+
+export interface AISettingsResponse {
+  error: boolean;
+  message: string;
+  data: AISettings;
+}
+
+// API Keys Types
+export interface APIKey {
+  id: string;
+  provider: 'openai' | 'gemini';
+  key_name: string;
+  api_key: string; // This will be masked in responses
+  is_active: boolean;
+  last_used_at?: string;
+  create_at: string;
+  update_at: string;
+  created_by: string;
+}
+
+export interface CreateAPIKeyRequest {
+  provider: 'openai' | 'gemini';
+  key_name: string;
+  api_key: string;
+  is_active?: boolean;
+}
+
+export interface UpdateAPIKeyRequest {
+  key_name?: string;
+  api_key?: string;
+  is_active?: boolean;
+}
+
+export interface APIKeysListResponse {
+  error: boolean;
+  message: string;
+  data: APIKey[];
+}
+
+export interface APIKeyResponse {
+  error: boolean;
+  message: string;
+  data: APIKey;
+}
+
+export interface APIKeyDeleteResponse {
+  error: boolean;
+  message: string;
+}
+
+// Chatbots Types
+export interface Chatbot {
+  id: string;
+  portal_id: string;
+  name: string;
+  slug: string;
+  description?: string;
+  icon_url?: string;
+  system_prompt: string;
+  is_active: boolean;
+  display_order: number;
+  created_by: string;
+  create_at: string;
+  update_at: string;
+}
+
+export interface CreateChatbotRequest {
+  portal_id: string;
+  name: string;
+  slug?: string; // Optional, will be auto-generated if not provided
+  description?: string;
+  icon_url?: string;
+  system_prompt: string;
+  is_active?: boolean;
+  display_order?: number;
+}
+
+export interface UpdateChatbotRequest {
+  name?: string;
+  description?: string;
+  system_prompt?: string;
+  icon_url?: string;
+  is_active?: boolean;
+  display_order?: number;
+}
+
+export interface ChatbotsListResponse {
+  error: boolean;
+  message: string;
+  data: Chatbot[];
+  count?: number;
+}
+
+export interface ChatbotResponse {
+  error: boolean;
+  message: string;
+  data: Chatbot;
+}
+
+export interface ChatbotDeleteResponse {
+  error: boolean;
+  message: string;
+}
+
+export interface ChatbotIconUploadResponse {
+  error: boolean;
+  message: string;
+  data: {
+    chatbot: Chatbot;
+    icon_url: string;
+  };
+}
