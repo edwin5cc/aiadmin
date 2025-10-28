@@ -20,7 +20,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { Upload, Loader2, Eye } from 'lucide-react';
+import { Upload, Loader2, Eye, Play, X } from 'lucide-react';
 import { Lesson } from '@/types/api';
 
 interface AddEditLessonModalProps {
@@ -49,6 +49,8 @@ const AddEditLessonModal: React.FC<AddEditLessonModalProps> = ({
   const [displayOrder, setDisplayOrder] = useState(initialLesson?.display_order?.toString() || "");
   const [isPublished, setIsPublished] = useState(initialLesson?.is_published || false);
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
+  const [showVideoPlayer, setShowVideoPlayer] = useState(false);
+  const [videoToPlay, setVideoToPlay] = useState<string>('');
 
   useEffect(() => {
     if (initialLesson) {
@@ -75,6 +77,8 @@ const AddEditLessonModal: React.FC<AddEditLessonModalProps> = ({
       setIsPublished(false);
     }
     setSelectedFile(null);
+    setShowVideoPlayer(false);
+    setVideoToPlay('');
   }, [initialLesson, isOpen]);
 
   const handleFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
@@ -86,10 +90,16 @@ const AddEditLessonModal: React.FC<AddEditLessonModalProps> = ({
     }
   };
 
-  const handleViewVideo = (url: string) => {
-    if (url) {
-      window.open(url, '_blank');
+  const handleViewVideo = (url?: string) => {
+    const urlToPlay = url || videoUrl || initialLesson?.video_url;
+    if (urlToPlay) {
+      setVideoToPlay(urlToPlay);
+      setShowVideoPlayer(true);
     }
+  };
+
+  const handleCloseVideoPlayer = () => {
+    setShowVideoPlayer(false);
   };
 
   const handleSubmit = () => {
@@ -184,7 +194,7 @@ const AddEditLessonModal: React.FC<AddEditLessonModalProps> = ({
                   type="button"
                   variant="outline"
                   size="icon"
-                  onClick={() => handleViewVideo(videoUrl)}
+                  onClick={() => handleViewVideo()}
                   title="View Video"
                 >
                   <Eye className="h-4 w-4" />
@@ -198,32 +208,65 @@ const AddEditLessonModal: React.FC<AddEditLessonModalProps> = ({
               Video File
             </Label>
             <div className="col-span-3 flex flex-col items-center justify-center px-6 pt-5 pb-6 border-2 border-slate-300 border-dashed rounded-md">
-              <Upload className="mx-auto h-12 w-12 text-slate-400" />
-              {selectedFile && <p className="text-sm text-slate-600 mt-2">{selectedFile.name}</p>}
-              {initialLesson?.video_url && !selectedFile && (
-                <div className="mt-2 text-center">
-                  <p className="text-sm text-slate-600 mb-2">Current video:</p>
-                  <div className="flex items-center gap-2">
-                    <p className="text-xs text-slate-500 truncate max-w-[200px]">{initialLesson.video_url}</p>
+              {/* Video Player Section */}
+              {showVideoPlayer && videoToPlay ? (
+                <div className="w-full max-w-3xl">
+                  <div className="relative bg-black rounded-lg overflow-hidden">
                     <Button
                       type="button"
                       variant="ghost"
-                      size="sm"
-                      onClick={() => handleViewVideo(initialLesson.video_url || '')}
-                      className="h-6 px-2 text-xs"
+                      size="icon"
+                      onClick={handleCloseVideoPlayer}
+                      className="absolute top-2 right-2 z-10 text-white hover:bg-white/20"
                     >
-                      <Eye className="h-3 w-3 mr-1" />
-                      View
+                      <X className="h-4 w-4" />
+                    </Button>
+                    <video
+                      src={videoToPlay}
+                      controls
+                      className="w-full h-auto rounded-lg"
+                      preload="metadata"
+                    >
+                      Your browser does not support the video tag.
+                    </video>
+                  </div>
+                </div>
+              ) : selectedFile ? (
+                // When a new file is selected
+                <div className="flex flex-col items-center">
+                  <Upload className="mx-auto h-12 w-12 text-slate-400" />
+                  <p className="text-sm text-slate-600 mt-2">{selectedFile.name}</p>
+                </div>
+              ) : initialLesson?.video_url ? (
+                // When there's an existing video - show play button
+                <div className="mt-2 text-center w-full">
+                  <p className="text-sm text-slate-600 mb-4">Current video:</p>
+                  <div className="flex flex-col items-center gap-4">
+                    <p className="text-xs text-slate-500 truncate max-w-[300px]">{initialLesson.video_url}</p>
+                    <Button
+                      type="button"
+                      variant="default"
+                      size="lg"
+                      onClick={() => handleViewVideo()}
+                      className="bg-indigo-600 hover:bg-indigo-700 text-white flex items-center gap-2"
+                    >
+                      <Play className="h-5 w-5" />
+                      Play Video
                     </Button>
                   </div>
                 </div>
+              ) : (
+                // Empty state
+                <div className="flex flex-col items-center">
+                  <Upload className="mx-auto h-12 w-12 text-slate-400" />
+                  <div className="flex text-sm text-slate-600 mt-2">
+                    <label htmlFor="file-upload" className="relative cursor-pointer bg-white rounded-md font-medium text-indigo-600 hover:text-indigo-500 focus-within:outline-none">
+                      <span>Upload a file</span>
+                      <Input id="file-upload" name="file-upload" type="file" accept="video/*" className="sr-only" onChange={handleFileChange} />
+                    </label>
+                  </div>
+                </div>
               )}
-              <div className="flex text-sm text-slate-600 mt-2">
-                <label htmlFor="file-upload" className="relative cursor-pointer bg-white rounded-md font-medium text-indigo-600 hover:text-indigo-500 focus-within:outline-none">
-                  <span>{selectedFile ? "Upload a new file" : "Upload a file"}</span>
-                  <Input id="file-upload" name="file-upload" type="file" accept="video/*" className="sr-only" onChange={handleFileChange} />
-                </label>
-              </div>
             </div>
           </div>
 
