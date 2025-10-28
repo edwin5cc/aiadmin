@@ -89,7 +89,6 @@ const AIConfigPage = () => {
   const [newChatbotSlug, setNewChatbotSlug] = useState('');
   const [newChatbotDescription, setNewChatbotDescription] = useState('');
   const [newChatbotPrompt, setNewChatbotPrompt] = useState('');
-  const [newChatbotPortalId, setNewChatbotPortalId] = useState('');
   const [isCreatingChatbot, setIsCreatingChatbot] = useState(false);
 
   // Load API keys on mount
@@ -324,15 +323,15 @@ const AIConfigPage = () => {
       return;
     }
 
-    if (!newChatbotPortalId) {
-      toast.error('Please select a portal');
+    if (!selectedPortalId) {
+      toast.error('No portal selected');
       return;
     }
 
     setIsCreatingChatbot(true);
     try {
       await chatbotsApi.createChatbot({
-        portal_id: newChatbotPortalId,
+        portal_id: selectedPortalId,
         name: newChatbotName.trim(),
         slug: newChatbotSlug.trim() || newChatbotName.toLowerCase().replace(/\s+/g, '-'),
         description: newChatbotDescription.trim() || undefined,
@@ -346,11 +345,8 @@ const AIConfigPage = () => {
       setNewChatbotSlug('');
       setNewChatbotDescription('');
       setNewChatbotPrompt('');
-      setNewChatbotPortalId('');
-      // Refresh chatbot list if it matches the selected portal
-      if (newChatbotPortalId === selectedPortalId) {
-        loadChatbots();
-      }
+      // Refresh chatbot list
+      loadChatbots();
     } catch (error: any) {
       console.error('Failed to create chatbot:', error);
       toast.error(error.message || 'Failed to create chatbot');
@@ -597,10 +593,7 @@ const AIConfigPage = () => {
               )}
             </div>
             <Button
-              onClick={() => {
-                setNewChatbotPortalId(selectedPortalId || '');
-                setShowCreateDialog(true);
-              }}
+              onClick={() => setShowCreateDialog(true)}
               className="bg-indigo-600 text-white hover:bg-indigo-700"
             >
               <Plus className="w-4 h-4 mr-2" />
@@ -648,21 +641,15 @@ const AIConfigPage = () => {
           </DialogHeader>
 
           <div className="space-y-4 py-4">
-            {/* Portal Selection */}
+            {/* Portal Display (Read-only) */}
             <div className="space-y-2">
-              <Label htmlFor="create-portal">Portal *</Label>
-              <Select value={newChatbotPortalId} onValueChange={setNewChatbotPortalId}>
-                <SelectTrigger id="create-portal">
-                  <SelectValue placeholder="Select a portal" />
-                </SelectTrigger>
-                <SelectContent>
-                  {portals.map((portal) => (
-                    <SelectItem key={portal.id} value={portal.id}>
-                      {portal.title}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+              <Label>Portal</Label>
+              <Input 
+                value={currentPortal === 'founder' ? 'Founder' : 'Business Owner'} 
+                readOnly 
+                disabled
+                className="bg-slate-50 text-slate-500"
+              />
             </div>
 
             {/* Chatbot Name */}
@@ -728,7 +715,7 @@ const AIConfigPage = () => {
             </Button>
             <Button
               onClick={handleCreateChatbot}
-              disabled={isCreatingChatbot || !newChatbotName.trim() || !newChatbotPrompt.trim() || !newChatbotPortalId}
+              disabled={isCreatingChatbot || !newChatbotName.trim() || !newChatbotPrompt.trim() || !selectedPortalId}
               className="bg-indigo-600 text-white hover:bg-indigo-700"
             >
               {isCreatingChatbot ? 'Creating...' : 'Create Chatbot'}
