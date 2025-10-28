@@ -35,7 +35,10 @@ import {
   ChatbotsListResponse,
   ChatbotResponse,
   ChatbotDeleteResponse,
-  ChatbotIconUploadResponse
+  ChatbotIconUploadResponse,
+  UserActivity,
+  UserActivitiesResponse,
+  UserActivityDetailResponse
 } from '../types/api';
 import { config } from '../config/env';
 
@@ -1766,6 +1769,60 @@ export const chatbotsApi = {
   },
 };
 
+// User Activities API functions
+export const userActivitiesApi = {
+  /**
+   * Get user activities with pagination
+   */
+  async getUserActivities(params?: {
+    page?: number;
+    limit?: number;
+  }): Promise<UserActivitiesResponse> {
+    const token = authApi.getToken();
+    
+    if (!token) {
+      throw new ApiError('Authentication token not found', 401);
+    }
+
+    const queryParams = new URLSearchParams();
+    if (params?.page) queryParams.append('page', params.page.toString());
+    if (params?.limit) queryParams.append('limit', params.limit.toString());
+
+    const queryString = queryParams.toString();
+    const url = `/v1/api/aiaccelerator/admin/lambda/user-activities${queryString ? `?${queryString}` : ''}`;
+
+    return apiRequest<UserActivitiesResponse>(url, {
+      method: 'GET',
+      headers: {
+        'Authorization': `Bearer ${token}`,
+        'x-project': X_PROJECT_ID,
+      },
+    });
+  },
+
+  /**
+   * Get activity messages (full conversation context)
+   */
+  async getActivityMessages(activityId: string): Promise<UserActivityDetailResponse> {
+    const token = authApi.getToken();
+    
+    if (!token) {
+      throw new ApiError('Authentication token not found', 401);
+    }
+
+    return apiRequest<UserActivityDetailResponse>(
+      `/v1/api/aiaccelerator/admin/lambda/user-activities/${activityId}/messages`,
+      {
+        method: 'GET',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'x-project': X_PROJECT_ID,
+        },
+      }
+    );
+  },
+};
+
 // API client with authentication
 export const apiClient = {
   ...dashboardApi,
@@ -1779,6 +1836,7 @@ export const apiClient = {
   ...aiSettingsApi,
   ...apiKeysApi,
   ...chatbotsApi,
+  ...userActivitiesApi,
   
   /**
    * Make authenticated request

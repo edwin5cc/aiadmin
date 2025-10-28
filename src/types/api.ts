@@ -533,3 +533,68 @@ export interface ChatbotIconUploadResponse {
     icon_url: string;
   };
 }
+
+// User Activity Types
+export interface UserActivity {
+  id: string;
+  user_name: string;
+  action_summary: string;
+  create_at: string;
+}
+
+export interface UserActivityPagination {
+  page: number;
+  limit: number;
+  total: number;
+  total_pages: number;
+}
+
+export interface UserActivitiesResponse {
+  error: boolean;
+  message: string;
+  data: UserActivity[];
+  pagination: UserActivityPagination;
+}
+
+export interface UserActivityMessage {
+  id: string;
+  content: string;
+  role: 'user' | 'assistant';
+  message_order: number;
+  tokens_used: number;
+  create_at: string;
+}
+
+export interface UserActivityDetailData {
+  activity: {
+    id: string;
+    action_summary: string;
+    create_at: string;
+  };
+  user: {
+    id: string;
+    full_name: string;
+    email: string;
+    user_type: string;
+  };
+  chatbot: {
+    id: string;
+    name: string;
+    slug: string;
+    description: string;
+  };
+  session: {
+    id: string;
+    session_title: string;
+    status: string;
+    started_at: string;
+    last_activity_at: string;
+  };
+  messages: UserActivityMessage[];
+}
+
+export interface UserActivityDetailResponse {
+  error: boolean;
+  message: string;
+  data: UserActivityDetailData;
+}

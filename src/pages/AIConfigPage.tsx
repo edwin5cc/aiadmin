@@ -16,11 +16,19 @@ import {
   AccordionItem,
   AccordionTrigger,
 } from "@/components/ui/accordion";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import AIModulePromptConfig from '@/components/AIModulePromptConfig';
 import { toast } from "sonner";
 import { aiSettingsApi, apiKeysApi, chatbotsApi, portalsApi, Portal } from '@/services/api';
 import { AISettings, APIKey, Chatbot } from '@/types/api';
+import { Plus } from 'lucide-react';
 
 // AI Models Configuration - Easy to add/remove models here
 const AI_MODELS = {
@@ -50,6 +58,7 @@ const AIConfigPage = () => {
   const [apiKeyProvider, setApiKeyProvider] = useState<'openai' | 'gemini'>('openai');
   const [isSavingApiKey, setIsSavingApiKey] = useState(false);
   const [existingAPIKeys, setExistingAPIKeys] = useState<APIKey[]>([]);
+  const [showAPIKey, setShowAPIKey] = useState<{ [key: string]: boolean }>({});
 
   // AI Settings states
   const [founderSettings, setFounderSettings] = useState<AISettings | null>(null);
@@ -74,12 +83,22 @@ const AIConfigPage = () => {
   const [isLoadingChatbots, setIsLoadingChatbots] = useState(false);
   const [selectedPortalId, setSelectedPortalId] = useState<string>('');
 
+  // Create Chatbot states
+  const [showCreateDialog, setShowCreateDialog] = useState(false);
+  const [newChatbotName, setNewChatbotName] = useState('');
+  const [newChatbotSlug, setNewChatbotSlug] = useState('');
+  const [newChatbotDescription, setNewChatbotDescription] = useState('');
+  const [newChatbotPrompt, setNewChatbotPrompt] = useState('');
+  const [newChatbotPortalId, setNewChatbotPortalId] = useState('');
+  const [isCreatingChatbot, setIsCreatingChatbot] = useState(false);
+
   // Load API keys on mount
   useEffect(() => {
     loadAPIKeys();
     loadAISettings();
     loadPortals();
   }, []);
+
 
   // Update form fields when settings are loaded or portal changes
   useEffect(() => {
@@ -98,8 +117,20 @@ const AIConfigPage = () => {
   const loadAPIKeys = async () => {
     try {
       const response = await apiKeysApi.getAPIKeys();
+      console.log('🔑 API Keys response:', response);
       if (!response.error && response.data) {
+        console.log('🔑 Setting API keys:', response.data);
         setExistingAPIKeys(response.data);
+        
+        // Auto-populate on first load
+        if (response.data.length > 0) {
+          const openaiKey = response.data.find(k => k.provider === 'openai' && k.is_active);
+          if (openaiKey) {
+            console.log('🔑 Auto-filling OpenAI key');
+            setApiKey(openaiKey.api_key);
+            setApiKeyProvider('openai');
+          }
+        }
       }
     } catch (error: any) {
       console.error('Failed to load API keys:', error);
@@ -282,6 +313,52 @@ const AIConfigPage = () => {
     }
   };
 
+  const handleCreateChatbot = async () => {
+    if (!newChatbotName.trim()) {
+      toast.error('Please enter a chatbot name');
+      return;
+    }
+
+    if (!newChatbotPrompt.trim()) {
+      toast.error('Please enter a system prompt');
+      return;
+    }
+
+    if (!newChatbotPortalId) {
+      toast.error('Please select a portal');
+      return;
+    }
+
+    setIsCreatingChatbot(true);
+    try {
+      await chatbotsApi.createChatbot({
+        portal_id: newChatbotPortalId,
+        name: newChatbotName.trim(),
+        slug: newChatbotSlug.trim() || newChatbotName.toLowerCase().replace(/\s+/g, '-'),
+        description: newChatbotDescription.trim() || undefined,
+        system_prompt: newChatbotPrompt.trim(),
+        is_active: true,
+      });
+      toast.success(`Chatbot "${newChatbotName}" created successfully!`);
+      setShowCreateDialog(false);
+      // Reset form
+      setNewChatbotName('');
+      setNewChatbotSlug('');
+      setNewChatbotDescription('');
+      setNewChatbotPrompt('');
+      setNewChatbotPortalId('');
+      // Refresh chatbot list if it matches the selected portal
+      if (newChatbotPortalId === selectedPortalId) {
+        loadChatbots();
+      }
+    } catch (error: any) {
+      console.error('Failed to create chatbot:', error);
+      toast.error(error.message || 'Failed to create chatbot');
+    } finally {
+      setIsCreatingChatbot(false);
+    }
+  };
+
   return (
     <div className="p-4">
       <h2 className="text-3xl font-bold mb-6">AI Configuration</h2>
@@ -425,7 +502,12 @@ const AIConfigPage = () => {
         {/* New API Key Input Section */}
         <div className="space-y-2">
           <Label htmlFor="api-provider">Provider</Label>
-          <Select value={apiKeyProvider} onValueChange={(value: 'openai' | 'gemini') => setApiKeyProvider(value)}>
+          <Select value={apiKeyProvider} onValueChange={(value: 'openai' | 'gemini') => {
+            setApiKeyProvider(value);
+            // Pre-populate with existing key if available
+            const existingKey = existingAPIKeys.find(k => k.provider === value && k.is_active);
+            setApiKey(existingKey?.api_key || '');
+          }}>
             <SelectTrigger id="api-provider">
               <SelectValue placeholder="Select provider" />
             </SelectTrigger>
@@ -440,18 +522,49 @@ const AIConfigPage = () => {
           <Label htmlFor="api-key">
             {apiKeyProvider === 'openai' ? 'OpenAI' : 'Gemini'} API Key
           </Label>
-          <Input
-            id="api-key"
-            type="password" // Use type="password" for sensitive input
-            value={apiKey}
-            onChange={(e) => setApiKey(e.target.value)}
-            placeholder={`Enter your ${apiKeyProvider === 'openai' ? 'OpenAI' : 'Gemini'} API key`}
-          />
+          <div className="flex items-center space-x-2">
+            {(() => {
+              const currentKey = existingAPIKeys.find(k => k.provider === apiKeyProvider && k.is_active);
+              const isViewing = currentKey && showAPIKey[currentKey.id];
+              
+              return (
+                <>
+                  <Input
+                    id="api-key"
+                    type={isViewing ? 'text' : 'password'}
+                    value={apiKey}
+                    onChange={(e) => setApiKey(e.target.value)}
+                    placeholder={`Enter your ${apiKeyProvider === 'openai' ? 'OpenAI' : 'Gemini'} API key`}
+                  />
+                  {currentKey && (
+                    <>
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        onClick={() => {
+                          setShowAPIKey({ ...showAPIKey, [currentKey.id]: !showAPIKey[currentKey.id] });
+                        }}
+                      >
+                        {isViewing ? '👁️ Hide' : '👁️ View'}
+                      </Button>
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        onClick={async () => {
+                          await navigator.clipboard.writeText(currentKey.api_key);
+                          toast.success('API key copied to clipboard!');
+                        }}
+                      >
+                        📋 Copy
+                      </Button>
+                    </>
+                  )}
+                </>
+              );
+            })()}
+          </div>
           <p className="text-sm text-slate-500">
             This key will be used to authenticate with your chosen AI service.
-            {existingAPIKeys.some(k => k.provider === apiKeyProvider && k.is_active) && (
-              <span className="ml-2 text-green-600">✓ {apiKeyProvider === 'openai' ? 'OpenAI' : 'Gemini'} API key is configured</span>
-            )}
           </p>
         </div>
 
@@ -476,11 +589,23 @@ const AIConfigPage = () => {
       <div className="bg-white p-6 rounded-lg shadow">
         <div className="flex items-center justify-between mb-4">
           <h3 className="text-lg font-semibold">AI Chatbot Prompts</h3>
-          <div className="text-sm text-slate-500">
-            <p>Portal: <span className="font-semibold capitalize">{currentPortal === 'founder' ? 'Founder' : 'Business Owner'}</span></p>
-            {chatbotsForPortal.length > 0 && (
-              <p className="text-green-600 mt-1">{chatbotsForPortal.length} chatbot(s) loaded</p>
-            )}
+          <div className="flex items-center gap-4">
+            <div className="text-sm text-slate-500">
+              <p>Portal: <span className="font-semibold capitalize">{currentPortal === 'founder' ? 'Founder' : 'Business Owner'}</span></p>
+              {chatbotsForPortal.length > 0 && (
+                <p className="text-green-600 mt-1">{chatbotsForPortal.length} chatbot(s) loaded</p>
+              )}
+            </div>
+            <Button
+              onClick={() => {
+                setNewChatbotPortalId(selectedPortalId || '');
+                setShowCreateDialog(true);
+              }}
+              className="bg-indigo-600 text-white hover:bg-indigo-700"
+            >
+              <Plus className="w-4 h-4 mr-2" />
+              Create Chatbot
+            </Button>
           </div>
         </div>
 
@@ -511,6 +636,106 @@ const AIConfigPage = () => {
         </Accordion>
         )}
       </div>
+
+      {/* Create Chatbot Dialog */}
+      <Dialog open={showCreateDialog} onOpenChange={setShowCreateDialog}>
+        <DialogContent className="sm:max-w-[600px] max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>Create New Chatbot</DialogTitle>
+            <DialogDescription>
+              Create a new AI chatbot for your portal. The system will automatically generate a slug if not provided.
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="space-y-4 py-4">
+            {/* Portal Selection */}
+            <div className="space-y-2">
+              <Label htmlFor="create-portal">Portal *</Label>
+              <Select value={newChatbotPortalId} onValueChange={setNewChatbotPortalId}>
+                <SelectTrigger id="create-portal">
+                  <SelectValue placeholder="Select a portal" />
+                </SelectTrigger>
+                <SelectContent>
+                  {portals.map((portal) => (
+                    <SelectItem key={portal.id} value={portal.id}>
+                      {portal.title}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+
+            {/* Chatbot Name */}
+            <div className="space-y-2">
+              <Label htmlFor="create-name">Chatbot Name *</Label>
+              <Input
+                id="create-name"
+                value={newChatbotName}
+                onChange={(e) => setNewChatbotName(e.target.value)}
+                placeholder="e.g., Customer Support Bot"
+              />
+            </div>
+
+            {/* Chatbot Slug */}
+            <div className="space-y-2">
+              <Label htmlFor="create-slug">Slug (Optional)</Label>
+              <Input
+                id="create-slug"
+                value={newChatbotSlug}
+                onChange={(e) => setNewChatbotSlug(e.target.value)}
+                placeholder="e.g., customer-support"
+              />
+              <p className="text-xs text-slate-500">
+                URL-friendly identifier. Leave empty to auto-generate from name.
+              </p>
+            </div>
+
+            {/* Description */}
+            <div className="space-y-2">
+              <Label htmlFor="create-description">Description (Optional)</Label>
+              <Textarea
+                id="create-description"
+                value={newChatbotDescription}
+                onChange={(e) => setNewChatbotDescription(e.target.value)}
+                placeholder="Describe what this chatbot does..."
+                rows={3}
+              />
+            </div>
+
+            {/* System Prompt */}
+            <div className="space-y-2">
+              <Label htmlFor="create-prompt">System Prompt *</Label>
+              <Textarea
+                id="create-prompt"
+                value={newChatbotPrompt}
+                onChange={(e) => setNewChatbotPrompt(e.target.value)}
+                placeholder="Enter the system prompt for this chatbot..."
+                rows={6}
+              />
+              <p className="text-xs text-slate-500">
+                The system prompt defines how this chatbot behaves and what knowledge it has.
+              </p>
+            </div>
+          </div>
+
+          <div className="flex justify-end space-x-2 pt-4">
+            <Button
+              variant="outline"
+              onClick={() => setShowCreateDialog(false)}
+              disabled={isCreatingChatbot}
+            >
+              Cancel
+            </Button>
+            <Button
+              onClick={handleCreateChatbot}
+              disabled={isCreatingChatbot || !newChatbotName.trim() || !newChatbotPrompt.trim() || !newChatbotPortalId}
+              className="bg-indigo-600 text-white hover:bg-indigo-700"
+            >
+              {isCreatingChatbot ? 'Creating...' : 'Create Chatbot'}
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 };
